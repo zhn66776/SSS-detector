@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Costa Head patch review</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1>Costa Head patch 人工筛选</h1>
+        <p class="subtitle">逐张查看 polygon 内的 1,728 个 contact patch，自己决定保留或剔除。</p>
+      </div>
+      <div class="progress-block" aria-live="polite">
+        <div id="position-label">读取中…</div>
+        <div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div>
+        <div id="count-label" class="count-label">已保留 0 · 已剔除 0 · 未审核 0</div>
+      </div>
+    </header>
+
+    <main class="review-layout">
+      <section class="viewer-panel" aria-label="patch viewer">
+        <div class="image-toolbar">
+          <div class="view-switch" role="group" aria-label="图像显示方式">
+            <button id="raw-button" class="mode-button active" type="button" aria-pressed="true">Raw 无标记</button>
+            <button id="preview-button" class="mode-button" type="button" aria-pressed="false">Preview 红圈</button>
+          </div>
+          <div id="decision-status" class="decision-status">未审核</div>
+        </div>
+
+        <div class="image-stage">
+          <img id="patch-image" alt="当前 contact patch" decoding="async">
+          <div id="image-loading" class="image-loading">加载中…</div>
+        </div>
+
+        <div class="decision-row">
+          <label class="keep-option">
+            <input id="keep-checkbox" type="checkbox">
+            <span>保留这个 patch</span>
+          </label>
+          <span class="decision-help">点击“下一张”时：勾选 = 保留；未勾选 = 剔除。</span>
+        </div>
+
+        <div class="navigation-row">
+          <button id="previous-button" class="secondary-button" type="button">上一张</button>
+          <button id="next-button" class="primary-button" type="button">保存并下一张</button>
+          <button id="export-button" class="secondary-button" type="button">导出当前结果</button>
+        </div>
+        <p id="server-message" class="server-message" aria-live="polite"></p>
+      </section>
+
+      <aside class="details-panel" aria-label="contact details">
+        <h2>Contact 信息</h2>
+        <dl>
+          <div><dt>UID</dt><dd id="detail-uid">—</dd></div>
+          <div><dt>ID</dt><dd id="detail-id">—</dd></div>
+          <div><dt>Area</dt><dd id="detail-area">—</dd></div>
+          <div><dt>Description</dt><dd id="detail-description">—</dd></div>
+          <div><dt>E / N</dt><dd id="detail-coordinate">—</dd></div>
+          <div><dt>尺寸</dt><dd id="detail-size">—</dd></div>
+          <div><dt>Grey mean</dt><dd id="detail-mean">—</dd></div>
+          <div><dt>Grey variance</dt><dd id="detail-variance">—</dd></div>
+          <div><dt>Source</dt><dd id="detail-source">—</dd></div>
+        </dl>
+        <div class="keyboard-help">
+          <h3>快捷键</h3>
+          <p><kbd>Space</kbd> 勾选/取消</p>
+          <p><kbd>←</kbd> 上一张　<kbd>→</kbd> 下一张</p>
+        </div>
+      </aside>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dudgeon Geophysical Inspector</title>
+  <script>
+    if (location.pathname.endsWith('/IRP-external/tools/sss-inspector-template.html')) {
+      location.replace('file:///Volumes/HP%20P900/Dudgeon_2013_MDE/03_sss_inspector/index.html');
+    }
+  </script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080b10;
+      --panel: rgba(15, 20, 28, .94);
+      --panel-soft: rgba(15, 20, 28, .82);
+      --line: rgba(255, 255, 255, .13);
+      --text: #f4f7fb;
+      --muted: #aab5c3;
+      --focus: #7dcfff;
+      --ok: #73d8a2;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { background: var(--bg); color: var(--text); font: 14px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, select, input { font: inherit; }
+    button, select {
+      color: var(--text); background: #171e29; border: 1px solid var(--line); border-radius: 7px;
+    }
+    button { min-height: 34px; padding: 6px 10px; }
+    button:hover { background: #202a38; }
+    button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    #app { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+    header {
+      min-height: 62px; display: flex; align-items: center; gap: 16px; padding: 10px 14px;
+      background: #0f141c; border-bottom: 1px solid var(--line); z-index: 20;
+    }
+    .brand { min-width: max-content; }
+    .brand strong { display: block; font-size: 15px; font-weight: 600; }
+    .brand span { color: var(--muted); font-size: 12px; }
+    .header-status { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; flex: 1; }
+    .badge { border: 1px solid var(--line); border-radius: 999px; padding: 5px 8px; color: var(--muted); white-space: nowrap; }
+    .badge.ok { color: var(--ok); border-color: rgba(115,216,162,.35); background: rgba(115,216,162,.07); }
+    #load-status { margin-left: auto; color: var(--muted); white-space: nowrap; }
+    #workspace { min-height: 0; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 410px; }
+    #viewer { position: relative; min-width: 0; min-height: 0; background: #080b10; touch-action: none; user-select: none; }
+    #scene { display: block; width: 100%; height: 100%; }
+    #loading {
+      position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted);
+      background: rgba(8, 11, 16, .72); pointer-events: none; z-index: 8;
+    }
+    #loading[hidden] { display: none; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; backdrop-filter: blur(10px); }
+    #legend {
+      position: absolute; top: 12px; left: 12px; width: 268px; max-height: calc(100% - 24px);
+      display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; z-index: 6;
+    }
+    #legend.collapsed { width: auto; }
+    #legend.collapsed .legend-body, #legend.collapsed .layer-section { display: none; }
+    .layer-section { padding: 10px; border-bottom: 1px solid var(--line); }
+    .layer-section strong { display: block; margin-bottom: 6px; font-weight: 600; }
+    .layer-row { display: flex; align-items: center; gap: 8px; min-height: 29px; color: var(--text); }
+    .layer-row input { margin: 0; }
+    .layer-row small { margin-left: auto; color: var(--muted); }
+    .gradient { height: 7px; flex: 1; border-radius: 4px; opacity: .9; }
+    .gradient.mbes { background: linear-gradient(90deg, #30123b, #32409f, #20908c, #5ec962, #e1dc37, #f46e24, #b40426); }
+    .gradient.mag { background: linear-gradient(90deg, #224aa8, #eeefe9, #aa2337); }
+    .legend-group { margin: 8px 0 3px; color: var(--muted); font-size: 12px; }
+    .layer-scale { display: flex; justify-content: space-between; margin: -2px 0 4px 26px; color: var(--muted); font-size: 11px; }
+    .legend-head { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px; gap: 8px; }
+    .legend-head strong { font-weight: 600; }
+    .legend-actions { display: flex; gap: 6px; }
+    .legend-actions button { min-height: 28px; padding: 3px 7px; font-size: 12px; }
+    .legend-body { min-height: 0; overflow: auto; padding: 0 10px 10px; }
+    .legend-row { display: grid; grid-template-columns: 18px 13px minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 5px 0; }
+    .legend-row input { margin: 0; }
+    .swatch { width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,.28); flex: none; }
+    .legend-label { overflow-wrap: anywhere; }
+    .legend-count { color: var(--muted); font-variant-numeric: tabular-nums; }
+    #controls { position: absolute; right: 12px; bottom: 12px; display: grid; gap: 6px; z-index: 6; }
+    #controls button { width: 40px; min-height: 38px; padding: 5px; font-size: 18px; background: var(--panel); }
+    #coordinates {
+      position: absolute; right: 12px; top: 12px; padding: 7px 9px; color: var(--muted);
+      font: 12px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; z-index: 5;
+    }
+    #resolution-status {
+      position: absolute; right: 12px; top: 48px; padding: 6px 9px; color: var(--ok);
+      font-size: 12px; z-index: 5;
+    }
+    #tooltip {
+      position: absolute; display: none; max-width: 300px; padding: 7px 9px; pointer-events: none;
+      background: #edf3fa; color: #10151c; border-radius: 7px; box-shadow: 0 8px 28px rgba(0,0,0,.35); z-index: 9;
+    }
+    #tooltip strong { font-weight: 600; }
+    #detail { min-width: 0; min-height: 0; overflow: auto; background: #0f141c; border-left: 1px solid var(--line); }
+    .detail-head { padding: 13px 14px 11px; border-bottom: 1px solid var(--line); }
+    .detail-head strong { display: block; font-size: 15px; font-weight: 600; }
+    .detail-head span { color: var(--muted); font-size: 12px; }
+    #detail-empty { min-height: 320px; display: grid; place-items: center; padding: 28px; text-align: center; color: var(--muted); }
+    #detail-content[hidden], #detail-empty[hidden] { display: none; }
+    .detail-tools { display: grid; grid-template-columns: minmax(0, 1fr) 112px; gap: 10px; padding: 12px 14px; }
+    .field label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .field select { width: 100%; min-height: 35px; padding: 5px 8px; }
+    .crosshair-option { grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; color: var(--muted); }
+    .crosshair-option input { margin: 0; }
+    .detail-image { margin: 0 14px; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: #fff; }
+    #detail-canvas, #mbes-detail-canvas, #mag-detail-canvas { display: block; width: 100%; aspect-ratio: 1; background: #fff; }
+    #detail-caption { display: flex; justify-content: space-between; gap: 10px; padding: 7px 9px; background: #151c26; color: var(--muted); font-size: 12px; }
+    .detail-caption { display: flex; justify-content: space-between; gap: 10px; padding: 7px 9px; background: #151c26; color: var(--muted); font-size: 12px; }
+    .detail-section-title { margin: 13px 14px 7px; font-weight: 600; }
+    #contact-info { padding: 13px 14px 18px; }
+    .contact-title { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .contact-title strong { font-weight: 600; overflow-wrap: anywhere; }
+    .contact-category { color: var(--muted); margin-bottom: 11px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 14px; }
+    .info-grid span { color: var(--muted); font-size: 12px; }
+    .info-grid b { display: block; margin-top: 2px; color: var(--text); font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+    .source-note { margin-top: 12px; color: var(--muted); font-size: 12px; }
+    .source-note.warn { color: #ffd782; }
+    @media (max-width: 980px) {
+      #workspace { grid-template-columns: minmax(0, 1fr) 350px; }
+      .detail-tools { grid-template-columns: 1fr; }
+      .crosshair-option { grid-column: 1; }
+    }
+    @media (max-width: 760px) {
+      html, body { overflow: auto; }
+      #app { height: auto; min-height: 100%; }
+      header { flex-wrap: wrap; gap: 8px; }
+      .brand { width: 100%; }
+      #load-status { margin-left: 0; }
+      #workspace { display: grid; grid-template-columns: 1fr; grid-template-rows: 66vh auto; }
+      #detail { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+      #legend { max-width: calc(100% - 76px); }
+      #coordinates, #resolution-status { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand"><strong>Dudgeon Geophysical Inspector</strong><span>SSS · MBES · MAG in one UTM canvas</span></div>
+    <div class="header-status">
+      <span class="badge">__TOTAL_CONTACTS__ SSS · __TOTAL_MAG_CONTACTS__ MAG targets</span>
+      <span class="badge ok">CRS verified · EPSG:32631</span>
+    </div>
+    <div id="load-status" aria-live="polite">Loading contacts…</div>
+  </header>
+  <div id="workspace">
+    <main id="viewer">
+      <canvas id="scene" aria-label="SSS, MBES, and magnetometer map with categorized contact overlays"></canvas>
+      <div id="loading">Loading SSS contact list…</div>
+      <section id="legend" class="panel" aria-label="Map layers and contact categories">
+        <div class="layer-section">
+          <strong>Layers</strong>
+          <label class="layer-row"><input id="layer-sss" type="checkbox" checked> SSS imagery</label>
+          <label class="layer-row"><input id="layer-mbes" type="checkbox"> MBES bathymetry <span class="gradient mbes"></span></label>
+          <div class="layer-scale"><span>−26.5 m deep</span><span>−11.8 m shallow</span></div>
+          <label class="layer-row"><input id="layer-mag" type="checkbox"> MAG total field <span class="gradient mag"></span></label>
+          <label class="layer-row"><input id="layer-sss-contacts" type="checkbox" checked> SSS contacts <small>__TOTAL_CONTACTS__</small></label>
+          <label class="layer-row"><input id="layer-mag-contacts" type="checkbox"> MAG targets <small>__TOTAL_MAG_CONTACTS__</small></label>
+        </div>
+        <div class="legend-head">
+          <strong>Contact categories</strong>
+          <div class="legend-actions">
+            <button id="toggle-all" type="button">None</button>
+            <button id="collapse-legend" type="button" aria-label="Collapse category legend">Hide</button>
+          </div>
+        </div>
+        <div id="legend-body" class="legend-body"></div>
+      </section>
+      <div id="coordinates" class="panel">E — · N —</div>
+      <div id="resolution-status" class="panel">Overview layers</div>
+      <div id="controls" aria-label="Map controls">
+        <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+        <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+        <button id="fit" type="button" aria-label="Fit mosaic">⌂</button>
+      </div>
+      <div id="tooltip" role="tooltip"></div>
+    </main>
+    <aside id="detail" aria-label="Selected contact SSS detail">
+      <div class="detail-head"><strong>Selected target and SSS close-up</strong><span>Native SSS sheet around an SSS or MAG target coordinate</span></div>
+      <div id="detail-empty">Enable a contact layer, then click a colored point to inspect its attributes and local SSS image.</div>
+      <div id="detail-content" hidden>
+        <div class="detail-tools">
+          <div class="field">
+            <label for="detail-source">Source sheet</label>
+            <select id="detail-source"></select>
+          </div>
+          <div class="field">
+            <label for="detail-span">View width</label>
+            <select id="detail-span">
+              <option value="20">20 m</option>
+              <option value="50" selected>50 m</option>
+              <option value="100">100 m</option>
+              <option value="200">200 m</option>
+            </select>
+          </div>
+          <label class="crosshair-option"><input id="show-crosshair" type="checkbox" checked> Show contact crosshair</label>
+        </div>
+        <div class="detail-section-title">SSS native image</div>
+        <figure class="detail-image">
+          <canvas id="detail-canvas" aria-label="Enlarged SSS image around selected contact"></canvas>
+          <figcaption id="detail-caption"><span>—</span><span>—</span></figcaption>
+        </figure>
+        <div class="detail-section-title">MBES native bathymetry</div>
+        <figure class="detail-image">
+          <canvas id="mbes-detail-canvas" aria-label="Native 0.2 metre MBES around selected target"></canvas>
+          <figcaption id="mbes-detail-caption" class="detail-caption"><span>—</span><span>—</span></figcaption>
+        </figure>
+        <div class="detail-section-title">MAG raw measurements</div>
+        <figure class="detail-image">
+          <canvas id="mag-detail-canvas" aria-label="Full raw magnetometer measurements around selected target"></canvas>
+          <figcaption id="mag-detail-caption" class="detail-caption"><span>—</span><span>—</span></figcaption>
+        </figure>
+        <div id="contact-info"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const DATASETS = __DATASETS_JSON__;
+  const CATEGORIES = __CATEGORIES_JSON__;
+  const MAG_CATEGORIES = __MAG_CATEGORIES_JSON__;
+  const GEOPHYSICS = __GEOPHYSICS_JSON__;
+  const NATIVE = __NATIVE_JSON__;
+  const CRS = __CRS_JSON__;
+  const COVERAGE = __COVERAGE_JSON__;
+  const categoryByName = new Map(CATEGORIES.map(item => [item.name, item]));
+  const magCategoryByName = new Map(MAG_CATEGORIES.map(item => [item.name, item]));
+  const enabledSSS = new Set(CATEGORIES.map(item => item.name));
+  const enabledMag = new Set(MAG_CATEGORIES.map(item => item.name));
+  const ALL_RASTERS = [...DATASETS, ...GEOPHYSICS];
+  const layerState = { sss: true, mbes: false, mag: false, sssContacts: true, magContacts: false };
+  const BOUNDS = {
+    left: Math.min(...ALL_RASTERS.map(item => Math.min(item.left, item.right))),
+    right: Math.max(...ALL_RASTERS.map(item => Math.max(item.left, item.right))),
+    bottom: Math.min(...ALL_RASTERS.map(item => Math.min(item.bottom, item.top))),
+    top: Math.max(...ALL_RASTERS.map(item => Math.max(item.bottom, item.top)))
+  };
+  BOUNDS.width = BOUNDS.right - BOUNDS.left;
+  BOUNDS.height = BOUNDS.top - BOUNDS.bottom;
+  const app = {
+    viewer: document.getElementById('viewer'), canvas: document.getElementById('scene'),
+    detailCanvas: document.getElementById('detail-canvas'), detailEmpty: document.getElementById('detail-empty'),
+    mbesDetailCanvas: document.getElementById('mbes-detail-canvas'), magDetailCanvas: document.getElementById('mag-detail-canvas'),
+    detailContent: document.getElementById('detail-content'), detailSource: document.getElementById('detail-source'),
+    detailSpan: document.getElementById('detail-span'), detailCaption: document.getElementById('detail-caption'),
+    mbesDetailCaption: document.getElementById('mbes-detail-caption'), magDetailCaption: document.getElementById('mag-detail-caption'),
+    contactInfo: document.getElementById('contact-info'), showCrosshair: document.getElementById('show-crosshair'),
+    loading: document.getElementById('loading'), loadStatus: document.getElementById('load-status'),
+    legend: document.getElementById('legend'), legendBody: document.getElementById('legend-body'),
+    tooltip: document.getElementById('tooltip'), coordinates: document.getElementById('coordinates'),
+    resolutionStatus: document.getElementById('resolution-status')
+  };
+  const ctx = app.canvas.getContext('2d', { alpha: false, desynchronized: true });
+  const detailCtx = app.detailCanvas.getContext('2d', { alpha: false, desynchronized: true });
+  const mbesDetailCtx = app.mbesDetailCanvas.getContext('2d', { alpha: false, desynchronized: true });
+  const magDetailCtx = app.magDetailCanvas.getContext('2d', { alpha: false, desynchronized: true });
+  window.SSS_CONTACTS = window.SSS_CONTACTS || {};
+  window.MAG_CONTACTS = window.MAG_CONTACTS || {};
+  window.MAG_RAW_B64 = window.MAG_RAW_B64 || {};
+  const scriptLoads = new Map();
+  const magScriptLoads = new Map();
+  const tileCache = new Map();
+  const MAX_CACHE = 240;
+  const MAX_MAG_RAW_CACHE = 24;
+  const SSS_LOSSLESS_SCALE = 2;
+  const MBES_NATIVE_SCALE = 2;
+  const MAG_RAW_SCALE = 5;
+  const magRawKeys = new Set(NATIVE.mag.keys);
+  const magRawCache = new Map();
+  const magRawLoads = new Map();
+  let frameMagRawVisible = new Set();
+  const GRID_SIZE = 250;
+  const sssPointGrid = new Map();
+  const magPointGrid = new Map();
+  let sssPoints = [], magPoints = [], magLoadPromise = null;
+  let offsetX = 0, offsetY = 0, scale = 1, fitScale = 1;
+  let dragging = false, dragX = 0, dragY = 0, moved = false;
+  let selected = null, selectedDatasets = [], detailDataset = null, hovered = null;
+  let pointerX = 0, pointerY = 0, renderPending = false, lastFrame = 0;
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+  }
+
+  function loadBlock(block) {
+    if (window.SSS_CONTACTS[block]) return Promise.resolve(window.SSS_CONTACTS[block]);
+    if (scriptLoads.has(block)) return scriptLoads.get(block);
+    const promise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `data/blk${block}.js`;
+      script.onload = () => window.SSS_CONTACTS[block] ? resolve(window.SSS_CONTACTS[block]) : reject(new Error('Contact data was empty.'));
+      script.onerror = () => reject(new Error(`Could not load data/blk${block}.js`));
+      document.head.appendChild(script);
+    });
+    scriptLoads.set(block, promise);
+    return promise;
+  }
+
+  function loadMagBlock(block) {
+    if (window.MAG_CONTACTS[block]) return Promise.resolve(window.MAG_CONTACTS[block]);
+    if (magScriptLoads.has(block)) return magScriptLoads.get(block);
+    const promise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `data/mag-blk${block}.js`;
+      script.onload = () => window.MAG_CONTACTS[block] ? resolve(window.MAG_CONTACTS[block]) : reject(new Error('MAG target data was empty.'));
+      script.onerror = () => reject(new Error(`Could not load data/mag-blk${block}.js`));
+      document.head.appendChild(script);
+    });
+    magScriptLoads.set(block, promise);
+    return promise;
+  }
+
+  function buildLegend() {
+    app.legendBody.replaceChildren();
+    const addGroup = (title, items, kind, activeSet) => {
+      const heading = document.createElement('div'); heading.className = 'legend-group'; heading.textContent = title;
+      app.legendBody.appendChild(heading);
+      for (const item of items) {
+        const label = document.createElement('label'); label.className = 'legend-row';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox'; checkbox.checked = activeSet.has(item.name);
+        checkbox.dataset.category = item.name; checkbox.dataset.kind = kind;
+        checkbox.addEventListener('change', () => {
+          checkbox.checked ? activeSet.add(item.name) : activeSet.delete(item.name);
+          if (selected && selected.kind === kind && !activeSet.has(selected.category)) setSelected(null);
+          updateAllButton(); requestRender();
+        });
+        const swatch = document.createElement('span'); swatch.className = 'swatch'; swatch.style.background = item.color;
+        const name = document.createElement('span'); name.className = 'legend-label'; name.textContent = item.name;
+        const total = document.createElement('span'); total.className = 'legend-count'; total.textContent = item.count.toLocaleString();
+        label.append(checkbox, swatch, name, total); app.legendBody.appendChild(label);
+      }
+    };
+    addGroup('SSS contact type', CATEGORIES, 'sss', enabledSSS);
+    addGroup('MAG UXO risk', MAG_CATEGORIES, 'mag', enabledMag);
+    updateAllButton();
+  }
+
+  function updateAllButton() {
+    const boxes = [...app.legendBody.querySelectorAll('input[type="checkbox"]')];
+    document.getElementById('toggle-all').textContent = boxes.length && boxes.every(box => box.checked) ? 'None' : 'All';
+  }
+
+  function buildPointIndex(target, records) {
+    target.clear();
+    for (const point of records) {
+      const key = `${Math.floor(point.e / GRID_SIZE)},${Math.floor(point.n / GRID_SIZE)}`;
+      if (!target.has(key)) target.set(key, []);
+      target.get(key).push(point);
+    }
+  }
+
+  function mapWorldToScreen(easting, northing) {
+    return { x: offsetX + (easting - BOUNDS.left) * scale, y: offsetY + (BOUNDS.top - northing) * scale };
+  }
+
+  function mapScreenToWorld(x, y) {
+    return { e: BOUNDS.left + (x - offsetX) / scale, n: BOUNDS.top - (y - offsetY) / scale };
+  }
+
+  function mainViewBounds() {
+    const nw = mapScreenToWorld(0, 0), se = mapScreenToWorld(app.canvas.width, app.canvas.height);
+    return { left: nw.e, right: se.e, top: nw.n, bottom: se.n };
+  }
+
+  function fitView() {
+    const width = app.viewer.clientWidth, height = app.viewer.clientHeight;
+    fitScale = Math.min(width / BOUNDS.width, height / BOUNDS.height) * .94;
+    scale = fitScale;
+    offsetX = (width - BOUNDS.width * scale) / 2;
+    offsetY = (height - BOUNDS.height * scale) / 2;
+    requestRender();
+  }
+
+  function resize() {
+    const width = Math.max(1, Math.floor(app.viewer.clientWidth));
+    const height = Math.max(1, Math.floor(app.viewer.clientHeight));
+    if (app.canvas.width !== width || app.canvas.height !== height) {
+      const oldWidth = app.canvas.width || width, oldHeight = app.canvas.height || height;
+      const center = mapScreenToWorld(oldWidth / 2, oldHeight / 2);
+      app.canvas.width = width; app.canvas.height = height;
+      fitScale = Math.min(width / BOUNDS.width, height / BOUNDS.height) * .94;
+      offsetX = width / 2 - (center.e - BOUNDS.left) * scale;
+      offsetY = height / 2 - (BOUNDS.top - center.n) * scale;
+    }
+    for (const canvas of [app.detailCanvas, app.mbesDetailCanvas, app.magDetailCanvas]) {
+      const detailWidth = Math.max(1, Math.floor(canvas.clientWidth));
+      const detailHeight = Math.max(1, Math.floor(canvas.clientHeight));
+      if (canvas.width !== detailWidth || canvas.height !== detailHeight) {
+        canvas.width = detailWidth; canvas.height = detailHeight;
+      }
+    }
+    requestRender();
+  }
+
+  function requestRender() {
+    if (renderPending) return;
+    renderPending = true;
+    requestAnimationFrame(timestamp => {
+      if (timestamp - lastFrame < 25) {
+        renderPending = false; setTimeout(requestRender, 25); return;
+      }
+      renderPending = false; lastFrame = timestamp; frameMagRawVisible = new Set();
+      renderMain(); renderDetail(); trimMagRawCache(frameMagRawVisible);
+    });
+  }
+
+  function datasetLevel(item, screenPixelsPerMeter) {
+    if (item.nativeOnly) return item.maxLevel;
+    const nativePixelOnScreen = Math.abs(item.pixelX) * screenPixelsPerMeter;
+    const raw = Math.round(item.maxLevel + Math.log2(Math.max(nativePixelOnScreen, 1e-9)));
+    return Math.max(0, Math.min(item.maxLevel, raw));
+  }
+
+  function losslessSSS(item) {
+    return {
+      ...item,
+      id: `${item.id}-lossless`,
+      tileRoot: `lossless/${item.id}`,
+      extension: 'png',
+      nativeOnly: true
+    };
+  }
+
+  function tileImage(item, level, x, y) {
+    const key = `${item.id}/${level}/${x}_${y}`;
+    let entry = tileCache.get(key);
+    if (!entry) {
+      const image = new Image();
+      entry = { image, ready: false, used: performance.now() };
+      image.onload = () => { entry.ready = true; requestRender(); };
+      image.onerror = () => { entry.missing = true; requestRender(); };
+      const root = item.tileRoot || `tiles/${item.id}`;
+      const extension = item.extension || 'jpg';
+      image.src = `${root}/${level}/${x}_${y}.${extension}`;
+      tileCache.set(key, entry);
+    }
+    entry.used = performance.now();
+    return { key, entry };
+  }
+
+  function trimCache(visibleKeys) {
+    if (tileCache.size <= MAX_CACHE) return;
+    const candidates = [...tileCache.entries()].filter(([key]) => !visibleKeys.has(key)).sort((a, b) => a[1].used - b[1].used);
+    while (tileCache.size > MAX_CACHE && candidates.length) {
+      const [key, entry] = candidates.shift(); entry.image.src = ''; tileCache.delete(key);
+    }
+  }
+
+  function decodeBase64Float32(encoded) {
+    const binary = atob(encoded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Float32Array(bytes.buffer);
+  }
+
+  function loadMagRawTile(tx, ty) {
+    const key = `${tx}_${ty}`;
+    if (!magRawKeys.has(key)) return null;
+    if (magRawCache.has(key)) {
+      const entry = magRawCache.get(key); entry.used = performance.now(); return entry;
+    }
+    if (!magRawLoads.has(key)) {
+      const promise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = `${NATIVE.mag.scriptRoot}/${tx}/${ty}.js`;
+        script.onload = () => {
+          const encoded = window.MAG_RAW_B64[key];
+          if (!encoded) { reject(new Error(`MAG raw block ${key} was empty`)); return; }
+          const entry = { data: decodeBase64Float32(encoded), used: performance.now() };
+          delete window.MAG_RAW_B64[key];
+          magRawCache.set(key, entry); resolve(entry); requestRender();
+        };
+        script.onerror = () => reject(new Error(`Could not load MAG raw block ${key}`));
+        document.head.appendChild(script);
+      }).catch(() => null);
+      magRawLoads.set(key, promise);
+    }
+    return null;
+  }
+
+  function trimMagRawCache(visibleKeys) {
+    if (magRawCache.size <= MAX_MAG_RAW_CACHE) return;
+    const candidates = [...magRawCache.entries()].filter(([key]) => !visibleKeys.has(key)).sort((a, b) => a[1].used - b[1].used);
+    while (magRawCache.size > MAX_MAG_RAW_CACHE && candidates.length) {
+      const [key] = candidates.shift(); magRawCache.delete(key); magRawLoads.delete(key);
+    }
+  }
+
+  function magRawColor(bin) {
+    const stops = [[34,74,168],[92,151,208],[238,239,235],[226,132,105],[170,35,55]];
+    const position = Math.max(0, Math.min(1, bin / 31)) * (stops.length - 1);
+    const lo = Math.floor(position), hi = Math.min(stops.length - 1, lo + 1), f = position - lo;
+    const rgb = stops[lo].map((value, index) => Math.round(value * (1 - f) + stops[hi][index] * f));
+    return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+  }
+
+  function drawMagRaw(context, view, screenPixelsPerMeter, worldToScreen, pointSize = 1.2) {
+    const meta = NATIVE.mag, tileM = meta.tileM;
+    const minX = Math.max(0, Math.floor((view.left - meta.xmin) / tileM));
+    const maxX = Math.min(meta.widthTiles - 1, Math.floor((view.right - meta.xmin) / tileM));
+    const minY = Math.max(0, Math.floor((meta.ymax - view.top) / tileM));
+    const maxY = Math.min(meta.heightTiles - 1, Math.floor((meta.ymax - view.bottom) / tileM));
+    const paths = Array.from({ length: 32 }, () => new Path2D());
+    const overview = GEOPHYSICS.find(layer => layer.id === 'mag');
+    const low = overview.min, high = overview.max;
+    for (let tx = minX; tx <= maxX; tx++) {
+      for (let ty = minY; ty <= maxY; ty++) {
+        const key = `${tx}_${ty}`;
+        if (!magRawKeys.has(key)) continue;
+        frameMagRawVisible.add(key);
+        const entry = loadMagRawTile(tx, ty);
+        if (!entry) continue;
+        const data = entry.data;
+        const tileLeft = meta.xmin + tx * tileM;
+        const tileTop = meta.ymax - ty * tileM;
+        for (let i = 0; i < data.length; i += 3) {
+          const easting = tileLeft + data[i], northing = tileTop - data[i + 1];
+          if (easting < view.left || easting > view.right || northing < view.bottom || northing > view.top) continue;
+          const normalized = Math.max(0, Math.min(1, (data[i + 2] - low) / Math.max(high - low, 1e-9)));
+          const bin = Math.min(31, Math.floor(normalized * 32));
+          const pos = worldToScreen(easting, northing);
+          paths[bin].rect(pos.x, pos.y, pointSize, pointSize);
+        }
+      }
+    }
+    for (let bin = 0; bin < paths.length; bin++) {
+      context.fillStyle = magRawColor(bin); context.fill(paths[bin]);
+    }
+  }
+
+  function drawDatasetTiles(context, item, view, screenPixelsPerMeter, worldToScreen, visibleKeys) {
+    const overlap = {
+      left: Math.max(view.left, Math.min(item.left, item.right)),
+      right: Math.min(view.right, Math.max(item.left, item.right)),
+      top: Math.min(view.top, Math.max(item.top, item.bottom)),
+      bottom: Math.max(view.bottom, Math.min(item.top, item.bottom))
+    };
+    if (overlap.left >= overlap.right || overlap.bottom >= overlap.top) return;
+    const level = datasetLevel(item, screenPixelsPerMeter);
+    const downsample = 2 ** (item.maxLevel - level);
+    const levelWidth = Math.ceil(item.width / downsample), levelHeight = Math.ceil(item.height / downsample);
+    const tileWorldX = item.tileSize * downsample * Math.abs(item.pixelX);
+    const tileWorldY = item.tileSize * downsample * Math.abs(item.pixelY);
+    const minX = Math.max(0, Math.floor((overlap.left - item.left) / tileWorldX));
+    const maxX = Math.min(Math.ceil(levelWidth / item.tileSize) - 1, Math.floor((overlap.right - item.left) / tileWorldX));
+    const minY = Math.max(0, Math.floor((item.top - overlap.top) / tileWorldY));
+    const maxY = Math.min(Math.ceil(levelHeight / item.tileSize) - 1, Math.floor((item.top - overlap.bottom) / tileWorldY));
+    context.imageSmoothingEnabled = level < item.maxLevel;
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const tile = tileImage(item, level, x, y); visibleKeys.add(tile.key);
+        if (!tile.entry.ready || tile.entry.missing) continue;
+        const sourceWidth = Math.min(item.tileSize, levelWidth - x * item.tileSize);
+        const sourceHeight = Math.min(item.tileSize, levelHeight - y * item.tileSize);
+        const easting = item.left + x * tileWorldX;
+        const northing = item.top - y * tileWorldY;
+        const origin = worldToScreen(easting, northing);
+        context.drawImage(
+          tile.entry.image, origin.x, origin.y,
+          sourceWidth * downsample * Math.abs(item.pixelX) * screenPixelsPerMeter + .6,
+          sourceHeight * downsample * Math.abs(item.pixelY) * screenPixelsPerMeter + .6
+        );
+      }
+    }
+  }
+
+  function visiblePointCandidates(grid, records, view) {
+    const minX = Math.floor(view.left / GRID_SIZE), maxX = Math.floor(view.right / GRID_SIZE);
+    const minY = Math.floor(view.bottom / GRID_SIZE), maxY = Math.floor(view.top / GRID_SIZE);
+    const cellCount = (maxX - minX + 1) * (maxY - minY + 1);
+    if (cellCount > 5000) return records;
+    const result = [];
+    for (let x = minX; x <= maxX; x++) {
+      for (let y = minY; y <= maxY; y++) {
+        const cell = grid.get(`${x},${y}`);
+        if (cell) result.push(...cell);
+      }
+    }
+    return result;
+  }
+
+  function pointRadius() {
+    return scale < fitScale * 2 ? 2.2 : scale < .7 ? 3 : 4;
+  }
+
+  function pointColor(point) {
+    const item = point.kind === 'mag' ? magCategoryByName.get(point.category) : categoryByName.get(point.category);
+    return item ? item.color : '#adb5bd';
+  }
+
+  function drawPointSet(records, grid, view, kind, radius) {
+    let candidates = visiblePointCandidates(grid, records, view).filter(point =>
+      point.e >= view.left && point.e <= view.right && point.n >= view.bottom && point.n <= view.top
+      && (kind === 'mag' ? enabledMag.has(point.category) : enabledSSS.has(point.category))
+    );
+    if (kind === 'mag' && scale < .15) {
+      const bins = new Map();
+      const rank = { High: 4, Moderate: 3, Low: 2, Negligible: 1, Unspecified: 0 };
+      for (const point of candidates) {
+        const pos = mapWorldToScreen(point.e, point.n);
+        const key = `${Math.floor(pos.x / 4)},${Math.floor(pos.y / 4)}`;
+        const existing = bins.get(key);
+        if (!existing || (rank[point.category] || 0) > (rank[existing.category] || 0)) bins.set(key, point);
+      }
+      candidates = [...bins.values()];
+    }
+    ctx.lineWidth = 1.1;
+    for (const point of candidates) {
+      const pos = mapWorldToScreen(point.e, point.n);
+      ctx.beginPath();
+      if (kind === 'mag') {
+        ctx.rect(pos.x - radius, pos.y - radius, radius * 2, radius * 2);
+      } else {
+        ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = pointColor(point); ctx.fill();
+      ctx.strokeStyle = 'rgba(5,8,12,.82)'; ctx.stroke();
+    }
+  }
+
+  function renderMain() {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#080b10'; ctx.fillRect(0, 0, app.canvas.width, app.canvas.height);
+    const topLeft = mapWorldToScreen(BOUNDS.left, BOUNDS.top);
+    ctx.fillStyle = '#fff'; ctx.fillRect(topLeft.x, topLeft.y, BOUNDS.width * scale, BOUNDS.height * scale);
+    const visibleKeys = new Set();
+    const view = mainViewBounds();
+    const status = [];
+    if (layerState.sss) {
+      const losslessActive = scale >= SSS_LOSSLESS_SCALE;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(topLeft.x, topLeft.y, BOUNDS.width * scale, BOUNDS.height * scale); ctx.clip();
+      ctx.globalCompositeOperation = 'multiply';
+      for (const item of DATASETS) drawDatasetTiles(ctx, losslessActive ? losslessSSS(item) : item, view, scale, mapWorldToScreen, visibleKeys);
+      ctx.restore();
+      status.push(losslessActive ? 'SSS lossless native' : 'SSS JPEG overview');
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    if (layerState.mbes) {
+      ctx.globalAlpha = .95;
+      const nativeActive = scale >= MBES_NATIVE_SCALE;
+      const item = nativeActive ? NATIVE.mbes : GEOPHYSICS.find(layer => layer.id === 'mbes');
+      if (item) drawDatasetTiles(ctx, item, view, scale, mapWorldToScreen, visibleKeys);
+      status.push(nativeActive ? 'MBES 0.2 m native' : 'MBES 5 m overview');
+    }
+    if (layerState.mag) {
+      ctx.globalAlpha = .78;
+      const item = GEOPHYSICS.find(layer => layer.id === 'mag');
+      const rawActive = scale >= MAG_RAW_SCALE;
+      if (item && !rawActive) drawDatasetTiles(ctx, item, view, scale, mapWorldToScreen, visibleKeys);
+      if (rawActive && !dragging) drawMagRaw(ctx, view, scale, mapWorldToScreen, 1.2);
+      status.push(rawActive ? 'MAG full raw points' : 'MAG 5 m overview');
+    }
+    ctx.globalAlpha = 1;
+    app.resolutionStatus.textContent = status.length ? status.join(' · ') : 'Overview layers';
+    const radius = pointRadius();
+    if (layerState.sssContacts) drawPointSet(sssPoints, sssPointGrid, view, 'sss', radius);
+    if (layerState.magContacts && magPoints.length) drawPointSet(magPoints, magPointGrid, view, 'mag', Math.max(2, radius - .3));
+    if (selected) {
+      const pos = mapWorldToScreen(selected.e, selected.n);
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, radius + 4, 0, Math.PI * 2);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+    }
+    trimCache(visibleKeys);
+  }
+
+  function nearestPoint(screenX, screenY, radius = 12) {
+    const world = mapScreenToWorld(screenX, screenY);
+    const radiusMeters = radius / scale;
+    const minX = Math.floor((world.e - radiusMeters) / GRID_SIZE), maxX = Math.floor((world.e + radiusMeters) / GRID_SIZE);
+    const minY = Math.floor((world.n - radiusMeters) / GRID_SIZE), maxY = Math.floor((world.n + radiusMeters) / GRID_SIZE);
+    let best = null, bestDistance = radius * radius;
+    const search = (grid, kind, activeSet) => {
+      for (let x = minX; x <= maxX; x++) {
+        for (let y = minY; y <= maxY; y++) {
+          for (const point of grid.get(`${x},${y}`) || []) {
+            if (point.kind !== kind || !activeSet.has(point.category)) continue;
+            const pos = mapWorldToScreen(point.e, point.n);
+            const distance = (pos.x - screenX) ** 2 + (pos.y - screenY) ** 2;
+            if (distance < bestDistance) { best = point; bestDistance = distance; }
+          }
+        }
+      }
+    };
+    if (layerState.sssContacts) search(sssPointGrid, 'sss', enabledSSS);
+    if (layerState.magContacts && magPoints.length) search(magPointGrid, 'mag', enabledMag);
+    return best;
+  }
+
+  function showTooltip(point, x, y) {
+    if (!point) { app.tooltip.style.display = 'none'; return; }
+    const prefix = point.kind === 'mag' ? 'MAG target' : 'SSS contact';
+    app.tooltip.innerHTML = `<strong>${prefix} ${escapeHtml(point.id)}</strong><br>${escapeHtml(point.category)} · Block ${escapeHtml(point.b)}`;
+    app.tooltip.style.display = 'block';
+    const left = Math.min(app.viewer.clientWidth - app.tooltip.offsetWidth - 8, x + 14);
+    const top = Math.min(app.viewer.clientHeight - app.tooltip.offsetHeight - 8, y + 14);
+    app.tooltip.style.left = `${Math.max(8, left)}px`; app.tooltip.style.top = `${Math.max(8, top)}px`;
+  }
+
+  function contains(item, point) {
+    return point.e >= Math.min(item.left, item.right) && point.e <= Math.max(item.left, item.right)
+      && point.n >= Math.min(item.bottom, item.top) && point.n <= Math.max(item.bottom, item.top);
+  }
+
+  function metric(value) { return value == null ? '—' : `${value} m`; }
+
+  function setSelected(point) {
+    selected = point;
+    if (!point) {
+      selectedDatasets = []; detailDataset = null;
+      app.detailEmpty.hidden = false; app.detailContent.hidden = true;
+      requestRender(); return;
+    }
+    const covering = DATASETS.filter(item => contains(item, point));
+    selectedDatasets = covering.sort((a, b) => {
+      const aSame = a.block === point.b ? 0 : 1, bSame = b.block === point.b ? 0 : 1;
+      return aSame - bSame || Math.abs(a.pixelX) - Math.abs(b.pixelX) || a.label.localeCompare(b.label);
+    });
+    detailDataset = selectedDatasets[0] || null;
+    app.detailSource.replaceChildren();
+    for (const item of selectedDatasets) {
+      const option = document.createElement('option'); option.value = item.id;
+      option.textContent = `${item.label}${item.block === point.b ? '' : ' (adjacent coverage)'}`;
+      app.detailSource.appendChild(option);
+    }
+    app.detailSource.disabled = selectedDatasets.length < 2;
+    app.detailEmpty.hidden = true; app.detailContent.hidden = false;
+    const sourceNote = detailDataset && detailDataset.block !== point.b
+      ? '<div class="source-note warn">This contact lies just outside its named block image; the close-up uses an overlapping adjacent SSS sheet.</div>'
+      : '<div class="source-note">The close-up uses a georeferenced sheet from the same named block.</div>';
+    if (point.kind === 'mag') {
+      const category = magCategoryByName.get(point.category);
+      const linked = point.sid ? escapeHtml(point.sid) : '—';
+      const extras = [point.c && `SSS class: ${escapeHtml(point.c)}`, point.cf && `SSS confidence: ${escapeHtml(point.cf)}`, point.a && `Comment: ${escapeHtml(point.a)}`].filter(Boolean).map(text => `<div class="source-note">${text}</div>`).join('');
+      app.contactInfo.innerHTML = `<div class="contact-title"><span class="swatch" style="background:${category?.color || '#adb5bd'}"></span><strong>MAG ${escapeHtml(point.id)}</strong></div><div class="contact-category">${escapeHtml(point.category)} UXO risk · Block ${escapeHtml(point.b)}</div><div class="info-grid"><span>Burial depth<b>${metric(point.d)}</b></span><span>Gradient<b>${point.g == null ? '—' : `${point.g} nT/m`}</b></span><span>Estimated weight<b>${point.w == null ? '—' : `${point.w} kg`}</b></span><span>Linked SSS ID<b>${linked}</b></span><span>Easting<b>${point.e.toFixed(2)} m</b></span><span>Northing<b>${point.n.toFixed(2)} m</b></span></div>${extras}${sourceNote}`;
+    } else {
+      const category = categoryByName.get(point.category);
+      const raw = point.r ? `<div class="source-note">Original list label: ${escapeHtml(point.r)}</div>` : '';
+      app.contactInfo.innerHTML = `<div class="contact-title"><span class="swatch" style="background:${category?.color || '#adb5bd'}"></span><strong>${escapeHtml(point.id)}</strong></div><div class="contact-category">${escapeHtml(point.category)} · Block ${escapeHtml(point.b)}</div><div class="info-grid"><span>Length<b>${metric(point.l)}</b></span><span>Width<b>${metric(point.w)}</b></span><span>Height<b>${metric(point.h)}</b></span><span>Visible on MBES<b>${point.m ? 'Yes' : 'No'}</b></span><span>Easting<b>${point.e.toFixed(2)} m</b></span><span>Northing<b>${point.n.toFixed(2)} m</b></span></div>${raw}${sourceNote}`;
+    }
+    requestAnimationFrame(resize);
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      document.getElementById('detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    requestRender();
+  }
+
+  function renderDetail() {
+    const canvases = [
+      [app.detailCanvas, detailCtx], [app.mbesDetailCanvas, mbesDetailCtx], [app.magDetailCanvas, magDetailCtx]
+    ];
+    for (const [canvas, context] of canvases) {
+      context.globalCompositeOperation = 'source-over'; context.globalAlpha = 1;
+      context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    if (!selected) return;
+    const span = Number(app.detailSpan.value);
+    const makeView = canvas => {
+      const screenPixelsPerMeter = Math.min(canvas.width, canvas.height) / span;
+      const view = {
+        left: selected.e - canvas.width / screenPixelsPerMeter / 2,
+        right: selected.e + canvas.width / screenPixelsPerMeter / 2,
+        top: selected.n + canvas.height / screenPixelsPerMeter / 2,
+        bottom: selected.n - canvas.height / screenPixelsPerMeter / 2
+      };
+      const worldToScreen = (easting, northing) => ({
+        x: (easting - view.left) * screenPixelsPerMeter,
+        y: (view.top - northing) * screenPixelsPerMeter
+      });
+      return { view, worldToScreen, screenPixelsPerMeter };
+    };
+    const drawCrosshair = (canvas, context) => {
+      if (!app.showCrosshair.checked) return;
+      const x = canvas.width / 2, y = canvas.height / 2;
+      context.strokeStyle = '#ff2d55'; context.lineWidth = 2;
+      context.beginPath(); context.arc(x, y, 10, 0, Math.PI * 2); context.stroke();
+      context.beginPath(); context.moveTo(x - 17, y); context.lineTo(x - 6, y); context.moveTo(x + 6, y); context.lineTo(x + 17, y); context.moveTo(x, y - 17); context.lineTo(x, y - 6); context.moveTo(x, y + 6); context.lineTo(x, y + 17); context.stroke();
+    };
+
+    const sssView = makeView(app.detailCanvas);
+    if (detailDataset) drawDatasetTiles(detailCtx, losslessSSS(detailDataset), sssView.view, sssView.screenPixelsPerMeter, sssView.worldToScreen, new Set());
+    drawCrosshair(app.detailCanvas, detailCtx);
+    app.detailCaption.innerHTML = `<span>${span} m view · ${detailDataset ? `${Math.abs(detailDataset.pixelX)} m/px lossless PNG` : 'no SSS coverage'}</span><span>EPSG:${CRS.epsg}</span>`;
+
+    const mbesView = makeView(app.mbesDetailCanvas);
+    drawDatasetTiles(mbesDetailCtx, NATIVE.mbes, mbesView.view, mbesView.screenPixelsPerMeter, mbesView.worldToScreen, new Set());
+    drawCrosshair(app.mbesDetailCanvas, mbesDetailCtx);
+    app.mbesDetailCaption.innerHTML = `<span>${span} m view · native 0.2 m</span><span>${NATIVE.mbes.sourcePoints.toLocaleString()} source cells</span>`;
+
+    const magView = makeView(app.magDetailCanvas);
+    drawMagRaw(magDetailCtx, magView.view, magView.screenPixelsPerMeter, magView.worldToScreen, 1.5);
+    drawCrosshair(app.magDetailCanvas, magDetailCtx);
+    app.magDetailCaption.innerHTML = `<span>${span} m view · all raw points</span><span>${NATIVE.mag.pointCount.toLocaleString()} source points</span>`;
+  }
+
+  function setScale(newScale, anchorX, anchorY) {
+    const clamped = Math.max(fitScale * .45, Math.min(16, newScale));
+    const world = mapScreenToWorld(anchorX, anchorY);
+    scale = clamped;
+    offsetX = anchorX - (world.e - BOUNDS.left) * scale;
+    offsetY = anchorY - (BOUNDS.top - world.n) * scale;
+    requestRender();
+  }
+
+  function updateCoordinates(x, y) {
+    const world = mapScreenToWorld(x, y);
+    if (world.e < BOUNDS.left || world.e > BOUNDS.right || world.n < BOUNDS.bottom || world.n > BOUNDS.top) {
+      app.coordinates.textContent = 'E — · N —'; return;
+    }
+    app.coordinates.textContent = `E ${world.e.toFixed(1)} · N ${world.n.toFixed(1)} · ${scale.toFixed(3)} px/m`;
+  }
+
+  function updateStatus() {
+    const magText = magPoints.length ? `${magPoints.length.toLocaleString()} MAG` : 'MAG targets unloaded';
+    app.loadStatus.textContent = `${sssPoints.length.toLocaleString()} SSS · ${magText} · EPSG:${CRS.epsg}`;
+  }
+
+  async function loadSSSContacts() {
+    const blocks = [...new Set(DATASETS.map(item => item.block))];
+    try {
+      const loaded = [];
+      for (const block of blocks) {
+        loaded.push((await loadBlock(block)).map(point => ({ ...point, b: block, kind: 'sss', category: point.c })));
+      }
+      sssPoints = loaded.flat(); buildPointIndex(sssPointGrid, sssPoints); buildLegend(); fitView();
+      app.loading.hidden = true;
+      updateStatus();
+    } catch (error) {
+      app.loading.hidden = false;
+      app.loading.textContent = `${error.message} Keep the data folder next to index.html.`;
+      app.loadStatus.textContent = 'Load failed';
+    }
+  }
+
+  async function loadMagContacts() {
+    if (magPoints.length) return magPoints;
+    if (magLoadPromise) return magLoadPromise;
+    magLoadPromise = (async () => {
+      app.loadStatus.textContent = 'Loading MAG target list…';
+      const blocks = [...new Set(DATASETS.map(item => item.block))];
+      const loaded = [];
+      for (const block of blocks) {
+        loaded.push((await loadMagBlock(block)).map(point => ({ ...point, b: block, kind: 'mag', category: point.r })));
+      }
+      magPoints = loaded.flat(); buildPointIndex(magPointGrid, magPoints); updateStatus(); requestRender();
+      return magPoints;
+    })().catch(error => {
+      magLoadPromise = null; layerState.magContacts = false;
+      document.getElementById('layer-mag-contacts').checked = false;
+      app.loadStatus.textContent = `MAG list load failed: ${error.message}`;
+      throw error;
+    });
+    return magLoadPromise;
+  }
+
+  app.viewer.addEventListener('wheel', event => {
+    event.preventDefault();
+    const rect = app.viewer.getBoundingClientRect();
+    setScale(scale * Math.exp(-event.deltaY * .0015), event.clientX - rect.left, event.clientY - rect.top);
+  }, { passive: false });
+  app.viewer.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || event.target !== app.canvas) return;
+    const rect = app.viewer.getBoundingClientRect();
+    pointerX = event.clientX - rect.left; pointerY = event.clientY - rect.top;
+    dragging = true; moved = false; dragX = event.clientX; dragY = event.clientY;
+    app.canvas.setPointerCapture(event.pointerId); app.canvas.style.cursor = 'grabbing'; showTooltip(null);
+  });
+  app.viewer.addEventListener('pointermove', event => {
+    const rect = app.viewer.getBoundingClientRect();
+    pointerX = event.clientX - rect.left; pointerY = event.clientY - rect.top;
+    updateCoordinates(pointerX, pointerY);
+    if (dragging) {
+      const dx = event.clientX - dragX, dy = event.clientY - dragY;
+      if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+      offsetX += dx; offsetY += dy; dragX = event.clientX; dragY = event.clientY; requestRender(); return;
+    }
+    hovered = nearestPoint(pointerX, pointerY); showTooltip(hovered, pointerX, pointerY);
+  });
+  app.viewer.addEventListener('pointerup', event => {
+    if (!dragging) return;
+    dragging = false; app.canvas.style.cursor = '';
+    if (!moved) setSelected(nearestPoint(pointerX, pointerY, 13));
+    try { app.canvas.releasePointerCapture(event.pointerId); } catch (_) {}
+  });
+  app.viewer.addEventListener('pointerleave', () => { if (!dragging) showTooltip(null); });
+  app.viewer.addEventListener('dblclick', event => {
+    const rect = app.viewer.getBoundingClientRect(); setScale(scale * 2, event.clientX - rect.left, event.clientY - rect.top);
+  });
+  document.getElementById('zoom-in').addEventListener('click', () => setScale(scale * 1.7, app.canvas.width / 2, app.canvas.height / 2));
+  document.getElementById('zoom-out').addEventListener('click', () => setScale(scale / 1.7, app.canvas.width / 2, app.canvas.height / 2));
+  document.getElementById('fit').addEventListener('click', fitView);
+  document.getElementById('layer-sss').addEventListener('change', event => { layerState.sss = event.target.checked; requestRender(); });
+  document.getElementById('layer-mbes').addEventListener('change', event => { layerState.mbes = event.target.checked; requestRender(); });
+  document.getElementById('layer-mag').addEventListener('change', event => { layerState.mag = event.target.checked; requestRender(); });
+  document.getElementById('layer-sss-contacts').addEventListener('change', event => {
+    layerState.sssContacts = event.target.checked;
+    if (!layerState.sssContacts && selected?.kind === 'sss') setSelected(null);
+    requestRender();
+  });
+  document.getElementById('layer-mag-contacts').addEventListener('change', async event => {
+    layerState.magContacts = event.target.checked;
+    if (layerState.magContacts) {
+      try { await loadMagContacts(); } catch (_) {}
+    } else if (selected?.kind === 'mag') {
+      setSelected(null);
+    }
+    requestRender();
+  });
+  document.getElementById('toggle-all').addEventListener('click', () => {
+    const boxes = [...app.legendBody.querySelectorAll('input[type="checkbox"]')];
+    const shouldEnable = !boxes.every(box => box.checked);
+    for (const box of boxes) {
+      box.checked = shouldEnable;
+      const target = box.dataset.kind === 'mag' ? enabledMag : enabledSSS;
+      shouldEnable ? target.add(box.dataset.category) : target.delete(box.dataset.category);
+    }
+    if (!shouldEnable) setSelected(null); updateAllButton(); requestRender();
+  });
+  document.getElementById('collapse-legend').addEventListener('click', event => {
+    const collapsed = app.legend.classList.toggle('collapsed'); event.currentTarget.textContent = collapsed ? 'Show' : 'Hide';
+    event.currentTarget.setAttribute('aria-label', collapsed ? 'Show category legend' : 'Collapse category legend');
+  });
+  app.detailSource.addEventListener('change', () => {
+    detailDataset = selectedDatasets.find(item => item.id === app.detailSource.value) || selectedDatasets[0]; requestRender();
+  });
+  app.detailSpan.addEventListener('change', requestRender);
+  app.showCrosshair.addEventListener('change', requestRender);
+  new ResizeObserver(resize).observe(app.viewer);
+  new ResizeObserver(resize).observe(app.detailCanvas);
+  new ResizeObserver(resize).observe(app.mbesDetailCanvas);
+  new ResizeObserver(resize).observe(app.magDetailCanvas);
+  resize(); loadSSSContacts();
+})();
+</script>
+</body>
+</html>

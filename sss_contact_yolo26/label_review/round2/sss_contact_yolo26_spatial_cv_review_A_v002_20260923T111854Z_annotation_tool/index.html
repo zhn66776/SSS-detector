@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SSS Review Round 2</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header id="top">
+  <div class="brand">
+    <h1>SSS contact review · round 2</h1>
+    <div class="roles">
+      <span class="role role-zip" id="role-zip" title="">ZIP · read-only source</span>
+      <span class="role role-b" id="role-b" title="">B · frozen backup</span>
+      <span class="role role-a" id="role-a" title="">A · working labels</span>
+      <span class="role role-check" id="baseline-badge">baseline …</span>
+    </div>
+  </div>
+  <div class="thresholds">
+    <label>Confidence ≥ <input type="range" id="conf-range" min="0.05" max="0.95" step="0.01"><input type="number" id="conf-num" min="0.05" max="1" step="0.01"></label>
+    <label>Match IoU ≥ <input type="range" id="iou-range" min="0.05" max="0.95" step="0.01"><input type="number" id="iou-num" min="0.05" max="1" step="0.01"></label>
+    <button id="thr-reset" type="button" title="Reset to 0.20 / 0.50">Reset 0.20 / 0.50</button>
+    <span class="hint" id="floor-hint">Saved OOF predictions start at 0.05; lower thresholds are not available.</span>
+  </div>
+  <div class="actions">
+    <button id="btn-undo" type="button" title="Ctrl/Cmd+Z">↶ Undo</button>
+    <button id="btn-redo" type="button" title="Ctrl/Cmd+Shift+Z">↷ Redo</button>
+    <button id="btn-export" type="button">Export A…</button>
+    <button id="btn-checks" type="button">Data checks…</button>
+    <button id="btn-restore-all" type="button" class="danger">Restore all A → B…</button>
+  </div>
+</header>
+
+<section id="stats">
+  <div class="stats-row" id="stats-global"></div>
+  <div class="stats-row" id="stats-filtered"></div>
+  <div class="stats-note">Patch counts for TP / FP / FN overlap (one patch can hold TP, FN and FP candidates at once). Box counts are shown separately. Unscored patches never count as TN.</div>
+</section>
+
+<main>
+  <section id="left">
+    <nav id="tabs" role="tablist"></nav>
+    <div id="view-note" class="view-note"></div>
+    <form id="filters" autocomplete="off">
+      <label>Spatial chunk <select id="f-chunk"><option value="">all</option></select></label>
+      <label>Original group <select id="f-group"><option value="">all</option></select></label>
+      <label title="Original final_split metadata from development_split_manifest.csv. This is NOT a CV fold.">final_split (metadata, not CV fold) <select id="f-split"><option value="">all</option></select></label>
+      <label>Patch ID <input type="search" id="f-q" placeholder="search…"></label>
+      <label>FP type <select id="f-fptype"><option value="">any</option><option value="unlabelled_model_candidate">unlabelled_model_candidate</option><option value="extra_prediction_on_labelled_patch">extra_prediction_on_labelled_patch</option></select></label>
+      <label>FP review status <select id="f-fpreview"><option value="">any</option></select></label>
+      <label>Patch review <select id="f-patchreview"><option value="">any</option></select></label>
+      <label>Edited vs B <select id="f-modified"><option value="">any</option><option value="yes">modified</option><option value="no">unmodified</option></select></label>
+      <label>Max pred conf ≥ <input type="number" id="f-minconf" min="0" max="1" step="0.01"></label>
+      <label>Lowest TP IoU ≤ <input type="number" id="f-maxtpiou" min="0" max="1" step="0.01"></label>
+      <label>FP count ≥ <input type="number" id="f-minfp" min="0" step="1"></label>
+      <label>Sort <select id="f-sort">
+        <option value="default">view default</option>
+        <option value="chunk">spatial chunk / patch</option>
+        <option value="patch_id">patch ID</option>
+        <option value="max_conf">max prediction confidence</option>
+        <option value="max_fp_conf">max FP confidence</option>
+        <option value="fp_count">FP count</option>
+        <option value="fn_count">FN count</option>
+        <option value="gt_count">GT count</option>
+        <option value="min_tp_iou">lowest TP IoU</option>
+        <option value="fp_type">FP type</option>
+        <option value="fp_review">FP review status</option>
+        <option value="patch_review">patch review status</option>
+        <option value="modified">edited vs B</option>
+        <option value="random">random sample</option>
+      </select></label>
+      <label>Order <select id="f-order"><option value="">view default / asc</option><option value="asc">ascending</option><option value="desc">descending</option></select></label>
+      <label>Per page <select id="f-perpage"><option>25</option><option selected>50</option><option>100</option></select></label>
+      <button type="button" id="btn-random">New random sample</button>
+      <button type="button" id="btn-clear">Clear filters</button>
+    </form>
+    <div class="pager" id="pager-top"></div>
+    <div id="grid" class="grid"></div>
+    <div class="pager" id="pager-bottom"></div>
+  </section>
+
+  <section id="right">
+    <div id="detail-empty" class="empty">Select a patch on the left. Use ← / → to move between patches.</div>
+    <div id="detail" hidden>
+      <div class="detail-head">
+        <button type="button" id="btn-prev" title="Previous patch (←)">←</button>
+        <h2 id="d-title"></h2>
+        <button type="button" id="btn-next" title="Next patch (→)">→</button>
+        <span id="d-badges"></span>
+        <span id="save-status" class="save-status"></span>
+      </div>
+      <div class="toolbar">
+        <span class="group">
+          <label><input type="checkbox" id="ov-gt" checked> <span class="sw sw-gt"></span>GT (A)</label>
+          <label><input type="checkbox" id="ov-matched" checked> <span class="sw sw-matched"></span>matched pred</label>
+          <label><input type="checkbox" id="ov-unmatched" checked> <span class="sw sw-unmatched"></span>unmatched pred (FP cand.)</label>
+          <label><input type="checkbox" id="ov-below"> <span class="sw sw-below"></span>below threshold</label>
+          <label><input type="checkbox" id="ov-b"> <span class="sw sw-b"></span>B (backup) boxes</label>
+          <label><input type="checkbox" id="ov-text" checked> text</label>
+        </span>
+        <span class="group">
+          <button type="button" id="mode-select" class="mode on" title="Select / move / resize (V)">Select</button>
+          <button type="button" id="mode-draw" class="mode" title="Draw new GT box (B)">Draw box</button>
+          <label><input type="checkbox" id="snap" checked> snap to pixel</label>
+          <label>Zoom <select id="zoom"><option value="3">3×</option><option value="4" selected>4×</option><option value="5">5×</option></select></label>
+        </span>
+      </div>
+      <div class="canvas-wrap">
+        <div id="stage" class="stage">
+          <img id="d-img" alt="original patch" draggable="false">
+          <svg id="d-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150"></svg>
+        </div>
+        <div class="side">
+          <div id="cursor-info" class="mono small">x –, y –</div>
+          <div id="img-info" class="mono small"></div>
+          <div class="panel">
+            <h3>Selected box</h3>
+            <div id="sel-info" class="small">Nothing selected.</div>
+            <div id="coord-editor" hidden>
+              <div class="coords">
+                <span>pixels</span>
+                <label>x0 <input type="number" step="0.01" id="c-x0"></label>
+                <label>y0 <input type="number" step="0.01" id="c-y0"></label>
+                <label>x1 <input type="number" step="0.01" id="c-x1"></label>
+                <label>y1 <input type="number" step="0.01" id="c-y1"></label>
+                <span>YOLO</span>
+                <label>cx <input type="number" step="0.0001" id="c-cx"></label>
+                <label>cy <input type="number" step="0.0001" id="c-cy"></label>
+                <label>w <input type="number" step="0.0001" id="c-w"></label>
+                <label>h <input type="number" step="0.0001" id="c-h"></label>
+              </div>
+              <div id="coord-error" class="error small"></div>
+              <button type="button" id="btn-apply-coords">Apply coordinates → save to A</button>
+            </div>
+            <div class="btn-row">
+              <button type="button" id="btn-adopt" disabled title="Add the selected prediction's box to A as a contact label (shortcut: A)">Adopt prediction as label</button>
+              <button type="button" id="btn-delete" disabled class="danger" title="Delete the selected GT box from A (shortcut: D or Delete)">Delete GT box</button>
+            </div>
+            <div class="btn-row">
+              <button type="button" id="btn-restore-patch" class="danger">Restore this patch to B…</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Ground truth in A <span class="small muted">(current working labels)</span></h3>
+        <table class="tbl" id="t-gt"></table>
+      </div>
+      <div class="panel">
+        <h3>OOF predictions <span class="small muted">(saved, read-only; review status never changes labels)</span></h3>
+        <div class="fp-note small" id="fp-note-detail"></div>
+        <table class="tbl" id="t-pred"></table>
+      </div>
+      <div class="panel">
+        <h3>Patch review</h3>
+        <div class="row">
+          <select id="patch-status"></select>
+          <input type="text" id="patch-note" placeholder="short note (optional)" maxlength="2000">
+          <button type="button" id="btn-patch-review">Save patch review</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Patch details</h3>
+        <table class="tbl kv" id="t-meta"></table>
+      </div>
+      <div class="panel">
+        <h3>CV folds for this patch</h3>
+        <table class="tbl" id="t-folds"></table>
+      </div>
+      <div class="panel">
+        <h3>Edit history for this patch</h3>
+        <table class="tbl" id="t-hist"></table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<dialog id="dlg-export">
+  <h3>Export working copy A</h3>
+  <p class="small">Creates a new version under <code>exports/</code> (folder, ZIP, manifest, changes CSV, review-status CSV). Existing versions, the source ZIP and backup B are never overwritten.</p>
+  <label>Purpose <select id="exp-purpose"><option value="final_labels">final_labels</option><option value="checkpoint">checkpoint</option><option value="acceptance_test">acceptance_test</option></select></label>
+  <label>Note <input type="text" id="exp-note" maxlength="500" placeholder="optional"></label>
+  <div class="btn-row"><button type="button" id="exp-go">Create new export version</button><button type="button" id="exp-close">Close</button></div>
+  <pre id="exp-result" class="mono small"></pre>
+  <h4>Existing exports</h4>
+  <table class="tbl" id="exp-list"></table>
+</dialog>
+
+<dialog id="dlg-checks">
+  <h3>Data checks &amp; source integrity</h3>
+  <div id="checks-body" class="small"></div>
+  <div class="btn-row"><button type="button" id="checks-integrity">Re-hash ZIP and B now</button><button type="button" id="checks-close">Close</button></div>
+  <pre id="integrity-result" class="mono small"></pre>
+</dialog>
+
+<dialog id="dlg-restore-all">
+  <h3>Restore the entire working copy A to backup B</h3>
+  <p>This replaces every modified label file in A with the B version (one undoable operation). Review statuses are kept. B itself is not touched.</p>
+  <p>Type <code>RESTORE ALL A TO B</code> to confirm:</p>
+  <input type="text" id="restore-all-text" autocomplete="off">
+  <div class="btn-row"><button type="button" id="restore-all-go" class="danger">Restore all</button><button type="button" id="restore-all-close">Cancel</button></div>
+</dialog>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

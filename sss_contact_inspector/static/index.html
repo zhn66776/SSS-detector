@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SSS Contact Inspector</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="title"><strong>SSS Contact Inspector</strong><span>Native-window research review · EPSG:32630</span></div>
+      <label>Dataset<select id="dataset"></select></label>
+      <label>Area<select id="area"></select></label>
+      <label class="search">Search ID or description<input id="search" type="search" placeholder="e.g. OWF-00120, debris"></label>
+      <span id="status" class="status">Loading…</span>
+    </header>
+    <div id="workspace">
+      <main id="map-wrap">
+        <canvas id="map" aria-label="SSS mosaic with projected contact markers"></canvas>
+        <section id="filters" class="panel">
+          <div class="panel-head"><strong>Contacts</strong><button id="filters-toggle" type="button">Hide</button></div>
+          <label id="magnetic-row"><input id="include-magnetic" type="checkbox"> Include Magnetic Anomaly</label>
+          <div id="categories"></div>
+          <div id="contact-count"></div>
+        </section>
+        <div id="map-message" class="map-message" hidden></div>
+        <div id="coordinates" class="panel">E — · N —</div>
+        <div id="scale" class="panel"><span></span><b></b></div>
+        <div id="map-controls">
+          <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+          <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+          <button id="fit" type="button" aria-label="Fit dataset">⌂</button>
+        </div>
+      </main>
+      <aside id="detail">
+        <div class="detail-head"><strong>Native-resolution inspection</strong><span>Click a contact marker to inspect its source pixels.</span></div>
+        <div id="detail-empty">No contact selected.</div>
+        <div id="detail-content" hidden>
+          <div class="detail-toolbar">
+            <label>Window width<select id="crop-span">
+              <option value="25">25 m</option>
+              <option value="50" selected>50 m</option>
+              <option value="100">100 m</option>
+              <option value="200">200 m</option>
+              <option value="400">400 m</option>
+            </select></label>
+            <button id="crop-reset" type="button">Recenter</button>
+          </div>
+          <div id="crop-wrap">
+            <canvas id="crop" aria-label="Native SSS crop with contact crosshair"></canvas>
+            <div class="crosshair" aria-hidden="true"></div>
+            <div id="crop-loading">Reading source window…</div>
+          </div>
+          <div id="crop-caption"></div>
+          <div id="contact-info"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

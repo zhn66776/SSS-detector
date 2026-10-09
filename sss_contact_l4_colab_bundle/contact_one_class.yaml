@@ -1,0 +1,12 @@
+{
+  "path": ".",
+  "train": "data/images/group_01",
+  "val": "data/images/group_02",
+  "test": "data/images/group_03",
+  "nc": 1,
+  "names": [
+    "contact"
+  ],
+  "channels": 1,
+  "note": "This YAML is included for reference. The notebook uses the bundled ONNX checkpoint and evaluates group_02/group_03 directly."
+}

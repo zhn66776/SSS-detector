@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SSS Test Inference Map</title>
+<link rel="stylesheet" href="/static/map.css">
+</head>
+<body>
+<header>
+  <h1>SSS contact · 推理地图 <span class="sub" id="src-sub"></span></h1>
+  <div class="controls">
+    <label>数据 <select id="src"></select></label>
+    <button id="btn-src-file" type="button" title="一张整幅声呐图（自动切 patch），或按住 ⌘/Ctrl 多选若干个 150×150 patch">📂 选择图像/patch 文件…</button>
+    <input id="src-file" type="file" accept=".tif,.tiff,.png" multiple hidden>
+    <button id="btn-dir-file" type="button" title="选择一个装着 150×150 patch 的文件夹，例如 bundle 的 data/images/test">📁 选择 patch 文件夹…</button>
+    <input id="dir-file" type="file" webkitdirectory multiple hidden>
+    <span id="src-info" class="info"></span>
+  </div>
+  <div class="controls">
+    <label>模型 <select id="model"></select></label>
+    <button id="btn-model-file" type="button">📂 选择模型权重…</button>
+    <input id="model-file" type="file" accept=".pt" hidden>
+    <span id="model-info" class="info"></span>
+  </div>
+  <div class="controls">
+    <button id="btn-start" type="button">▶ 开始推理</button>
+    <button id="btn-clear" type="button" class="danger">🗑 删除推理结果</button>
+    <label>置信度阈值 <input id="conf" type="number" min="0.05" max="1" step="0.05" value="0.50"></label>
+    <label class="buffer-only"><input id="buffer" type="checkbox"> 同时推理 buffer（chunk 10 保护区 151 个）</label>
+    <span id="status" class="status">未开始</span>
+  </div>
+  <div class="progress"><div id="bar"></div></div>
+  <div class="counts" id="counts"></div>
+</header>
+<main>
+  <section id="mapwrap">
+    <div class="maptools">
+      <span class="legend"><i class="sw pending"></i>未推理 <i class="sw done"></i>已推理·无检出 <i class="sw det"></i>已推理·有检出
+        <span class="buffer-only"><i class="sw buf"></i>buffer（未推理）</span>
+        <span class="gt-only"><i class="sw gt"></i>现有人工标签（未复核）</span>
+        <span class="nodata-only"><i class="sw nodata"></i>无数据（跳过）</span>
+        <i class="sw red"></i>模型检出 contact</span>
+      <label class="gt-only"><input id="show-gt" type="checkbox"> 人工标签</label>
+      <label><input id="show-grid" type="checkbox" checked> patch 网格</label>
+      <button id="btn-fit" type="button">适配视图</button>
+      <span class="hint">滚轮缩放 · 拖动平移 · 点击 patch 查看</span>
+    </div>
+    <div id="mapbox"><canvas id="map"></canvas><div id="tip" hidden></div></div>
+  </section>
+  <aside id="side">
+    <div id="empty" class="empty">点击地图上的 patch 查看放大图</div>
+    <div id="detail" hidden>
+      <h2 id="d-title"></h2>
+      <div id="d-meta" class="meta"></div>
+      <div class="stage"><img id="d-img" alt="patch"><svg id="d-svg" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div class="opts">
+        <label><input id="d-low" type="checkbox"> 显示低于阈值的预测</label>
+        <label class="gt-only"><input id="d-gt" type="checkbox"> 显示人工标签</label>
+      </div>
+      <table id="d-table"></table>
+    </div>
+    <div id="outputs" hidden>
+      <h3>输出文件</h3>
+      <div id="out-dir" class="meta"></div>
+      <ul id="out-list"></ul>
+    </div>
+  </aside>
+</main>
+<script src="/static/map.js"></script>
+</body>
+</html>

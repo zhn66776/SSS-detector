@@ -1,0 +1,12 @@
+{
+  "path": ".",
+  "train": [
+    "data/images/group_02",
+    "data/images/group_03"
+  ],
+  "val": "data/images/group_04",
+  "test": "data/images/group_01",
+  "nc": 1,
+  "names": ["contact"],
+  "channels": 1
+}

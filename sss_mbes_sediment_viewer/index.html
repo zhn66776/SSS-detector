@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Costa Head SSS · MBES · sediment inspector</title>
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<main>
+  <aside>
+    <h1>Costa Head</h1>
+    <p class="sub">SSS mosaic · MBES elevation · geometry roughness · official SBF labels — one EPSG:32630 frame</p>
+    <fieldset>
+      <legend>Base layer</legend>
+      <label><input type="radio" name="base" value="sss" checked> SSS mosaic (native ECW tiles)</label>
+      <label><input type="radio" name="base" value="bathy"> MBES elevation (2 m LAT)</label>
+      <label><input type="radio" name="base" value="rough"> Roughness (from MBES geometry)</label>
+      <label><input type="radio" name="base" value="none"> none</label>
+    </fieldset>
+    <fieldset>
+      <legend>Overlays</legend>
+      <label><input class="layer" data-k="sediments" type="checkbox" checked> sediment polygons</label>
+      <label><input class="layer" data-k="sss_contacts" type="checkbox" checked> SSS contacts</label>
+      <label><input class="layer" data-k="sand_waves" type="checkbox"> sand waves</label>
+      <label><input class="layer" data-k="sediment_lines" type="checkbox"> SBF polylines</label>
+      <label>polygon fill opacity <input id="opacity" type="range" min="0" max=".85" step=".05" value=".3"></label>
+    </fieldset>
+    <input id="search" placeholder="Find contact ID, label or attribute … (Enter)">
+    <p id="search-status" class="sub"></p>
+    <div id="legend"></div>
+    <div id="ramps"></div>
+    <p id="method">Loading audit…</p>
+    <p class="warn">Roughness is derived only from MBES elevation geometry; it is not MBES backscatter and does not determine sediment.</p>
+  </aside>
+  <section>
+    <div id="toolbar">
+      <button id="fit-mbes">Fit MBES</button>
+      <button id="fit-sss">Fit SSS</button>
+      <button id="split">Split: off</button>
+      <button id="check" title="Compare the drawn SSS tiles with the validated crop API at the view centre">Check SSS</button>
+      <span id="coords">EPSG:32630</span>
+      <span id="scale"></span>
+    </div>
+    <div id="map">
+      <canvas id="base"></canvas>
+      <canvas id="overlay"></canvas>
+      <div id="empty" hidden></div>
+    </div>
+    <pre id="info">Click a polygon, contact, sand wave or line for its official attributes.</pre>
+  </section>
+</main>
+<script src="static/app.js"></script>
+</body>
+</html>
