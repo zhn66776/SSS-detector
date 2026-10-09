@@ -322,7 +322,7 @@
     showMosaic(run);
     loadContacts().then(function () { counts(run); });
     $("outputs").hidden = false;
-    $("out-dir").textContent = run.output_dir;
+    $("out-dir").textContent = "Saved results for " + S.st.source.name;
     $("out-list").innerHTML = (run.files || []).map(function (f) { return '<li><a href="/api/output/' + f + '?dl=1">' + f + "</a></li>"; }).join("");
   }
   function showMosaic(run) {
@@ -405,7 +405,7 @@
     }).join("");
     $("model").innerHTML = st.models.map(function (m) {
       return '<option value="' + esc(m.key) + '"' + (m.key === st.model.key ? " selected" : "") + ">" +
-        esc(m.key === "default" ? "Default · " + m.name : m.name + " · " + m.sha256.slice(0, 8)) + "</option>";
+        esc(m.key === "default" ? "Default · " + m.name : m.name) + "</option>";
     }).join("");
     var s = st.source, info;
     if (s.kind === "bundle") info = "150×150 patches · 0.1 m/px · UTM · Annotations available";
@@ -424,8 +424,8 @@
     $("src-info").title = (s.skipped || []).map(function (k) { return "Skipped " + k.file + ": " + k.reason; }).join("\n");
     var m = st.model;
     $("model-info").textContent = (m.names ? "Classes: " + m.names.join(", ") + " · " : "") + "imgsz " + (m.imgsz || 256) +
-      (m.trained_ultralytics ? " · Trained with Ultralytics " + m.trained_ultralytics : "") + " · SHA-256 " + m.sha256.slice(0, 12);
-    $("model-info").title = st.weights;
+      (m.trained_ultralytics ? " · Trained with Ultralytics " + m.trained_ultralytics : "");
+    $("model-info").title = m.name;
     document.body.classList.toggle("has-gt", s.kind === "bundle" || !!s.has_gt);
     document.body.classList.toggle("has-buffer", s.kind === "bundle");
     document.body.classList.toggle("has-nodata", s.kind === "image" && s.patches_nodata > 0);

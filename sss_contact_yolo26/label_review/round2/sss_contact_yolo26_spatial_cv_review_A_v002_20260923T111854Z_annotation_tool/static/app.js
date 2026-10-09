@@ -787,7 +787,7 @@
       ["GT / pred (≥conf) / TP / FP / FN", d.counts.gt_count + " / " + d.counts.pred_count + " / " + d.counts.tp + " / " + d.counts.fp + " / " + d.counts.fn],
       ["image (ZIP member)", p.zip_image_member], ["source ZIP", p.source_zip],
       ["original GT (ZIP member)", p.zip_gt_member], ["original GT (backup B)", p.b_label_path],
-      ["current label (working A)", p.a_label_path], ["A sha256", d.a_sha256], ["B sha256", d.b_sha256 + (d.modified ? "  (A differs)" : "  (A identical)")],
+      ["current label (working A)", p.a_label_path], ["Compared with backup", d.modified ? "Modified" : "Unchanged"],
       ["predictions source", p.prediction_sources.join(" ; ")], ["merged predicted_labels (ZIP)", p.zip_pred_label_member],
       ["A file content", d.a_text ? d.a_text.replace(/\n/g, " ⏎ ") : "(empty file)"]
     ];
@@ -851,11 +851,12 @@
     $("dlg-checks").showModal();
   }
   function runIntegrity() {
-    $("integrity-result").textContent = "hashing…";
+    $("integrity-result").textContent = "Checking source files…";
     api("/api/integrity").then(function (r) {
-      $("integrity-result").textContent = "ZIP sha256 " + r.zip_now.sha256 + "\nZIP mtime " + r.zip_now.mtime_utc + "\nZIP unchanged since initialisation: " + r.zip_unchanged_since_init +
-        "\nB files checked: " + r.b_files_checked + ", mismatching backup_manifest: " + r.b_files_mismatching_backup_manifest.length +
-        "\nB manifest unchanged since initialisation: " + r.b_manifest_unchanged_since_init;
+      $("integrity-result").textContent = "Source archive: " + (r.zip_unchanged_since_init ? "unchanged" : "changed") +
+        "\nBackup label files checked: " + r.b_files_checked +
+        "\nBackup label differences: " + r.b_files_mismatching_backup_manifest.length +
+        "\nBackup record: " + (r.b_manifest_unchanged_since_init ? "unchanged" : "changed");
     }).catch(function (e) { $("integrity-result").textContent = e.message; });
   }
 
