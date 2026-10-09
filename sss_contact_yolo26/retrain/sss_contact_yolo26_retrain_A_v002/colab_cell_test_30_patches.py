@@ -1,14 +1,14 @@
-# test（spatial chunks 10–11）上抽 30 个 patch 看模型能否找到 contact —— 只出图，不做 evaluation
-# 青色 = 模型预测（数字为置信度）；黄色虚线 = 现有 test 标签（尚未复核，仅供参考）
+# Inspect predictions on 30 test patches (spatial chunks 10-11); figures only, no evaluation
+# Cyan: predictions with confidence; yellow dashed: existing unreviewed test labels for reference
 import random
 from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from PIL import Image
 
-CONF = 0.20            # 显示的最低置信度
-N, SEED = 30, 0        # 改 SEED 换一批
-SAMPLE_FROM = 'pred_or_gt'   # 'pred_or_gt' = 只从有预测或有标签的 patch 里抽；'all' = 全部 patch 随机抽
+CONF = 0.20            # Minimum displayed confidence
+N, SEED = 30, 0        # Change SEED to sample another batch
+SAMPLE_FROM = 'pred_or_gt'   # 'pred_or_gt': sample patches with predictions or labels; 'all': sample all patches
 SHOW_GT = True
 
 img_dir, lab_dir = BUNDLE_ROOT / 'data' / 'images' / 'test', BUNDLE_ROOT / 'data' / 'labels' / 'test'

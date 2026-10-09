@@ -71,6 +71,8 @@ Counts were checked against both the saved run manifests and contact CSVs. They 
 
 The application supports the built-in test region, uploaded GeoTIFF/PNG images, patch folders, and compatible single-channel detection weights. It cuts large images into patches, displays progress, merges overlapping detections, and exports a full-resolution mosaic and a contact CSV. Georeferenced inputs retain map coordinates.
 
+Application interfaces, runtime messages, review status labels and notebook generators use English. Previously saved upload metadata is also displayed in English.
+
 With the existing local environment, data and checkpoint available, run from the repository root:
 
 ```sh

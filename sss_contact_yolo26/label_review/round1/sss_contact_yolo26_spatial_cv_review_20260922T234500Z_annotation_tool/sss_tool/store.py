@@ -18,10 +18,10 @@ from .labels import LabelError, format_boxes, parse_label_text, validate_boxes
 
 PRED_STATUSES = ["unreviewed", "true_contact_missed_label", "confirmed_negative", "ambiguous"]
 PRED_STATUS_LABELS = {
-    "unreviewed": "unreviewed / 未复核",
-    "true_contact_missed_label": "true contact / missed label / 真实 contact（漏标）",
-    "confirmed_negative": "confirmed negative / 确认非 contact",
-    "ambiguous": "ambiguous / 不确定",
+    "unreviewed": "Not reviewed",
+    "true_contact_missed_label": "True contact / missing annotation",
+    "confirmed_negative": "Confirmed negative",
+    "ambiguous": "Ambiguous",
 }
 PATCH_STATUSES = ["unreviewed", "reviewed", "needs_followup"]
 MAX_NOTE_LEN = 2000

@@ -171,8 +171,8 @@ def make_html(rows: list[dict[str, str]], images: list[tuple[Image.Image, Image.
     image_data = base64.b64encode(PNG_PATH.read_bytes()).decode("ascii")
     reason_text = "；".join(
         [
-            "方差 < 450：139 个",
-            "方差 < 450 且均值 >= 250：872 个",
+            "Variance < 450: 139 contacts",
+            "Variance < 450 and mean >= 250: 872 contacts",
         ]
     )
     markup = f'''<div id="costa-excluded-contact-examples">
@@ -199,8 +199,8 @@ def make_html(rows: list[dict[str, str]], images: list[tuple[Image.Image, Image.
   border: 1px solid var(--border);
 }}
 </style>
-<h2>被剔除 contact 的代表性窗口</h2>
-<p>{html.escape(reason_text)}。左侧 raw 无标记，右侧 preview 的红圈只表示官方坐标。</p>
+<h2>Representative windows for excluded contacts</h2>
+<p>{html.escape(reason_text)}. Left: unmarked source image. Right: red circles indicate survey coordinates only.</p>
 <img src="data:image/png;base64,{image_data}" alt="Six representative rejected Costa Head contact windows, each showing an unmarked raw grayscale patch beside a red-ring review preview, with grey mean and variance." />
 </div>'''
     HTML_PATH.write_text(markup, encoding="utf-8")

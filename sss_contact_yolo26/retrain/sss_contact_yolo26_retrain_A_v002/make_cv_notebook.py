@@ -15,25 +15,25 @@ def code(s):
                   "source": s.strip("\n")})
 
 
-md("""
-# YOLO26n spatial CV 第二轮：用 A_v002 标签查找仍然漏标的 contact
+md(r"""
+# Round-2 spatial CV for SSS label review with YOLO26n
 
-- 数据：Drive 上的 `MyDrive/sss_contact_yolo26_spatial_split_A_v002.zip`（chunks 1–9 = 人工复核后的 A_v002 标签）
-- 与第一轮相同：8 个相邻双 chunk validation 窗口 (1–2, 2–3, …, 8–9)，每折其余 7 个 chunk 训练；每折重新计算 15 m 空间保护区；chunks 10–11 **不读取图片/标签**，只用其坐标做保护区
-- 训练配置与第一轮相同：YOLO26n、单通道、imgsz 256、AdamW lr0 1e-4、80 epochs、patience 20、正样本 2× 过采样、相同增强
-- 每折完成后立即把 OOF 预测和 best.pt 存到 Drive；断线后重新运行会跳过已完成的折
-- 最后的审阅 ZIP 直接下载到本机（并在 Drive 留一份备份）
-- 输出 ZIP 与第一轮 `sss_contact_yolo26_spatial_cv_review_*.zip` 结构相同，可直接导入本地标注平台复核
-- FP candidate = 相对当前标签（A_v002）未匹配的预测，不代表已确认的物理 false positive；这是标注审计，不是独立性能评估
+- Input: `MyDrive/sss_contact_yolo26_spatial_split_A_v002.zip`, using the first-round reviewed labels for chunks 1–9.
+- Eight adjacent two-chunk validation windows (1–2 through 8–9); train each fold on the other seven chunks, recomputing a 15 m spatial buffer.
+- Test chunks 10–11 contribute geometry only for buffering. Their images and labels are not read.
+- Settings match the first review round: single-channel YOLO26n, imgsz 256, AdamW lr0 1e-4, 80 maximum epochs, patience 20, 2× positive-patch oversampling and the same augmentation.
+- Save each fold's out-of-fold predictions and best checkpoint to Drive immediately. Completed folds can be resumed without retraining.
+- Download the final review ZIP and retain a Drive copy. Its layout is compatible with the local review platform.
+- An unmatched prediction is a possible missing label or model error. This is label auditing, not independent performance evaluation.
 """)
 
-code("""
-# 1. 安装（与第一轮相同版本）
+code(r"""
+# 1. Install the same package versions as the first review round
 %pip -q install ultralytics==8.4.159 pandas==2.2.3 pyyaml scipy pillow tqdm
 """)
 
-code("""
-# 2. 挂载 Drive、解压数据、读取 chunks 1–9 清单、训练配置
+code(r"""
+# 2. Mount Drive, extract data, read chunks 1-9 and configure training
 from google.colab import drive
 from pathlib import Path
 from zipfile import ZipFile
@@ -46,11 +46,11 @@ from tqdm.auto import tqdm
 
 drive.mount('/content/drive')
 ZIP_PATH = Path('/content/drive/MyDrive/sss_contact_yolo26_spatial_split_A_v002.zip')
-DRIVE_OUT = Path('/content/drive/MyDrive/sss_contact_yolo26_cv_A_v002')      # 每折结果 + 最终 ZIP
+DRIVE_OUT = Path('/content/drive/MyDrive/sss_contact_yolo26_cv_A_v002')      # Per-fold results and final review ZIP
 EXTRACT_ROOT = Path('/content/sss_cv_a_v002')
 if not (EXTRACT_ROOT / 'sss_contact_yolo26_spatial_split_A_v002').is_dir():
     with ZipFile(ZIP_PATH) as zf:
-        assert zf.testzip() is None, 'ZIP 损坏'
+        assert zf.testzip() is None, 'ZIP integrity check failed'
         zf.extractall(EXTRACT_ROOT)
 BUNDLE_ROOT = EXTRACT_ROOT / 'sss_contact_yolo26_spatial_split_A_v002'
 LOCAL_RUNS = Path('/content/sss_cv_a_v002_runs')
@@ -73,7 +73,7 @@ CV_FOLDS = [dict(fold_id=f'fold_{i:02d}_val_{i}_{i+1}', validation_chunks=[i, i 
 
 manifest = pd.read_csv(BUNDLE_ROOT / 'metadata' / 'split_manifest_A_v002.csv')
 dev = manifest[manifest.spatial_chunk.isin(DEV_CHUNKS)].copy()
-test_geom = manifest[manifest.spatial_chunk.isin(TEST_CHUNKS)][['patch_id', 'x0', 'x1', 'y0', 'y1']]   # 只用坐标
+test_geom = manifest[manifest.spatial_chunk.isin(TEST_CHUNKS)][['patch_id', 'x0', 'x1', 'y0', 'y1']]   # Geometry only
 image_by_id = {r.patch_id: BUNDLE_ROOT / 'data' / 'images' / r.final_split / f'{r.patch_id}.png' for r in dev.itertuples()}
 label_by_id = {r.patch_id: BUNDLE_ROOT / 'data' / 'labels' / r.final_split / f'{r.patch_id}.txt' for r in dev.itertuples()}
 assert len(dev) == 9000 and all(p.is_file() for p in image_by_id.values()) and all(p.is_file() for p in label_by_id.values())
@@ -81,11 +81,11 @@ group_by_chunk = dict(manifest.groupby('spatial_chunk').original_group.first())
 sample = Image.open(next(iter(image_by_id.values())))
 assert sample.mode == 'L' and sample.size == (150, 150)
 print('GPU:', torch.cuda.get_device_name(0) if CUDA else 'CPU', '| chunks 1–9 patches:', len(dev),
-      '| test 坐标行（仅用于保护区）:', len(test_geom))
+      '| test geometry rows (buffering only):', len(test_geom))
 """)
 
-code("""
-# 3. 每折重新计算 15 m 保护区（train↔validation，以及 chunks 1–9 ↔ 测试 chunks 10–11）
+code(r"""
+# 3. Recompute each fold's 15 m buffers between train/validation and against test geometry
 from scipy.spatial import cKDTree
 
 def near_masks(a, b, buf=BUFFER_M):
@@ -117,8 +117,8 @@ fold_plan = pd.DataFrame(plan_rows)
 display(fold_plan)
 """)
 
-code("""
-# 4. 逐折训练 + OOF 预测（每折完成即存 Drive；已完成的折自动跳过）
+code(r"""
+# 4. Train folds and save OOF predictions to Drive; skip completed folds
 from ultralytics import YOLO
 
 def has_box(pid):
@@ -135,11 +135,11 @@ for plan in FOLD_PLANS:
         pos_set = set(pos)
         entries = pos * POSITIVE_REPEAT + [p for p in plan['train_ids'] if p not in pos_set]
         random.Random(SEED).shuffle(entries)
-        (work / 'train.txt').write_text(''.join(f'{image_by_id[p]}\\n' for p in entries))
-        (work / 'val.txt').write_text(''.join(f'{image_by_id[p]}\\n' for p in plan['val_ids']))
+        (work / 'train.txt').write_text(''.join(f'{image_by_id[p]}\n' for p in entries))
+        (work / 'val.txt').write_text(''.join(f'{image_by_id[p]}\n' for p in plan['val_ids']))
         (work / 'data.yaml').write_text(yaml.safe_dump(dict(path=str(BUNDLE_ROOT), train=str(work / 'train.txt'),
                                         val=str(work / 'val.txt'), nc=1, names=['contact'], channels=1)))
-        model = YOLO(MODEL_WEIGHTS, task='detect')          # 每折都从预训练权重开始
+        model = YOLO(MODEL_WEIGHTS, task='detect')          # Start every fold from pretrained weights
         model.train(data=str(work / 'data.yaml'), project=str(LOCAL_RUNS / 'train'), name=fid, exist_ok=True, **TRAIN_ARGS)
         best = YOLO(str(model.trainer.best), task='detect')
         best.model.ch = 1
@@ -172,11 +172,11 @@ for plan in FOLD_PLANS:
     FOLD_PREDICTIONS[fid] = by_pid
     FOLD_SUMMARIES.append(dict(plan_rows[FOLD_PLANS.index(plan)], **{k: summary[k] for k in
                           ('unique_positive_train_patches', 'oversampled_train_entries')}, **summary['metrics']))
-print('全部', len(FOLD_PREDICTIONS), '折完成')
+print('Completed', len(FOLD_PREDICTIONS), 'folds')
 """)
 
-code("""
-# 5. 合并 OOF 预测并与 A_v002 标签一对一匹配（conf 0.20 / IoU 0.50）
+code(r"""
+# 5. Merge OOF predictions and match to A_v002 labels (conf 0.20 / IoU 0.50)
 from scipy.optimize import linear_sum_assignment
 
 def box_iou(a, b):
@@ -189,7 +189,7 @@ def evaluate(gt, all_preds, conf=REVIEW_CONF, thr=MATCH_IOU):
     preds = [p for p in all_preds if p['confidence'] >= conf]
     iou = np.array([[box_iou(g, p) for p in preds] for g in gt]).reshape(len(gt), len(preds))
     matches = {}
-    if iou.size:   # 一对一：先最大化匹配数，再最大化总 IoU
+    if iou.size:   # One-to-one: maximize match count, then total IoU
         weight = np.where(iou >= thr - 1e-9, min(iou.shape) + 1 + iou, 0.0)
         for g, p in zip(*linear_sum_assignment(weight, maximize=True)):
             if weight[g, p] > 0:
@@ -200,7 +200,7 @@ def evaluate(gt, all_preds, conf=REVIEW_CONF, thr=MATCH_IOU):
                 best_iou={g: float(iou[g].max()) if len(preds) else 0.0 for g in un_gt},
                 tp=len(matches), fp=len(un_p), fn=len(un_gt))
 
-def merge_folds(runs, thr=MATCH_IOU):   # 相近的跨折预测合并为一个框，记录 fold 支持度
+def merge_folds(runs, thr=MATCH_IOU):   # Merge overlapping cross-fold predictions and record fold support
     cands = sorted([dict(p, fold_id=fid) for fid, ps in runs for p in ps],
                    key=lambda p: (-p['confidence'], p['fold_id'], p['prediction_index']))
     clusters = []
@@ -282,10 +282,10 @@ print('OOF scored:', len(scored), '/ 9000 | unscored:', len(unscored))
 print({k: counts[k] for k in ('tp_boxes', 'tp_patches', 'fp_boxes', 'fp_patches', 'fn_boxes', 'fn_patches', 'tn_patches')})
 """)
 
-code("""
-# 6. 打包审阅 ZIP（结构与第一轮相同）并下载到本机
+code(r"""
+# 6. Package the review ZIP in the round-1 layout and download it
 RUN_ID = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
-PKG = LOCAL_RUNS / 'package' / 'sss_contact_yolo26_spatial_cv_review'   # 目录名保持不变，平台按此读取
+PKG = LOCAL_RUNS / 'package' / 'sss_contact_yolo26_spatial_cv_review'   # Preserve the root directory name expected by the review platform
 shutil.rmtree(PKG.parent, ignore_errors=True)
 for sub in ['validation/images', 'validation/ground_truth_labels', 'validation/predicted_labels', 'html_review']:
     (PKG / sub).mkdir(parents=True)
@@ -295,7 +295,7 @@ for pid in tqdm(sorted(dev.patch_id), desc='package'):
     shutil.copy2(label_by_id[pid], PKG / 'validation' / 'ground_truth_labels' / f'{pid}.txt')
     lines = [f"{p['class_id']} {p['cx']:.8f} {p['cy']:.8f} {p['w']:.8f} {p['h']:.8f} {p['confidence']:.8f}"
              for p in union_by_id.get(pid, [])]
-    (PKG / 'validation' / 'predicted_labels' / f'{pid}.txt').write_text(''.join(l + '\\n' for l in lines))
+    (PKG / 'validation' / 'predicted_labels' / f'{pid}.txt').write_text(''.join(l + '\n' for l in lines))
 
 reason = 'not held out in any fold after fold-specific 15 m guards'
 tables = {
@@ -340,33 +340,33 @@ pd.DataFrame(tn_rows, columns=cols(['review_status', 'gt_count', 'prediction_cou
         for n in ('fn', 'fp', 'tp', 'tn')},
     generation_time_utc=datetime.now(timezone.utc).isoformat(timespec='seconds'), source_directory='downloaded CV review bundle',
     interpretation='OOF-union discovery output for manual label review; not an unbiased CV performance estimate.'), indent=2))
-(PKG / 'html_review' / 'README.md').write_text('Round-2 YOLO26n spatial CV review bundle (labels = A_final_labels_v002).\\n'
-                                               'FP = unmatched relative to the current annotation set, not confirmed false positives.\\n')
+(PKG / 'html_review' / 'README.md').write_text('Round-2 YOLO26n spatial CV review bundle (labels = A_final_labels_v002).\n'
+                                               'FP = unmatched relative to the current annotation set, not confirmed false positives.\n')
 
 zip_path = LOCAL_RUNS / f'sss_contact_yolo26_spatial_cv_review_A_v002_{RUN_ID}.zip'
 with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=4) as zf:
     for p in sorted(PKG.rglob('*')):
         if p.is_file():
             zf.write(p, p.relative_to(PKG.parent))
-print('审阅 ZIP:', zip_path.name, f'({zip_path.stat().st_size / 2**20:.0f} MiB)')
+print('Review ZIP:', zip_path.name, f'({zip_path.stat().st_size / 2**20:.0f} MiB)')
 
-SAVE_DRIVE_COPY = True          # 浏览器下载偶尔会中断；True = 同时在 Drive 留一份备份
+SAVE_DRIVE_COPY = True          # Keep a Drive backup in case the browser download is interrupted
 if SAVE_DRIVE_COPY:
     shutil.copy2(zip_path, DRIVE_OUT / zip_path.name)
-    print('Drive 备份:', DRIVE_OUT / zip_path.name)
+    print('Drive backup:', DRIVE_OUT / zip_path.name)
 
 from google.colab import files
-files.download(str(zip_path))   # 浏览器会下载到本机（默认 ~/Downloads），文件较大需要等一会
+files.download(str(zip_path))   # Download through the browser; large files may take some time
 """)
 
-code("""
-# 7. 模型还能找到多少可能漏标的 contact？（conf ≥ 0.20 的未匹配 OOF 预测；置信度最高的 30 个 patch）
+code(r"""
+# 7. Inspect the 30 highest-confidence patches with unmatched OOF predictions (conf >= 0.20)
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from IPython.display import display
 
 fp = pd.DataFrame(fp_rows)
-print('未匹配预测（候选漏标）:', len(fp), '个框 /', fp.patch_id.nunique(), '个 patch')
+print('Unmatched predictions (possible missing labels):', len(fp), 'boxes /', fp.patch_id.nunique(), 'patches')
 display(fp.groupby('candidate_type').agg(boxes=('patch_id', 'size'), patches=('patch_id', 'nunique')))
 display(pd.cut(fp.prediction_confidence, [0.2, 0.3, 0.5, 0.7, 1.0]).value_counts().sort_index().rename('boxes by confidence'))
 
@@ -389,7 +389,7 @@ for ax, row in zip(axes.ravel(), top.itertuples()):
         ax.text((p['cx'] - p['w'] / 2) * 150, (p['cy'] - p['h'] / 2) * 150 - 2, f"{p['confidence']:.2f}", color=color, fontsize=8)
     ax.set_title(f"{row.patch_id[10:]} chunk {row.spatial_chunk}", fontsize=9)
 plt.show()
-print('黄 = A_v002 标签；红虚线 = 未匹配预测（候选漏标）；绿 = 已与标签匹配的预测')
+print('Yellow = A_v002 labels; red dashed = unmatched predictions; green = matched predictions')
 """)
 
 meta = {"kernelspec": {"display_name": "Python 3", "name": "python3"}, "language_info": {"name": "python"},

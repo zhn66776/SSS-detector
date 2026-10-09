@@ -262,7 +262,7 @@
         if (h && h.contact) {
           var c = h.contact, b = c.box;
           text = "contact " + c.contact_id + " · conf " + c.conf.toFixed(2) +
-            (c.easting != null ? " · E " + c.easting + " N " + c.northing : " · 像素 " + Math.round((b[0] + b[2]) / 2) + ", " + Math.round((b[1] + b[3]) / 2));
+            (c.easting != null ? " · E " + c.easting + " N " + c.northing : " · Pixel " + Math.round((b[0] + b[2]) / 2) + ", " + Math.round((b[1] + b[3]) / 2));
         } else if (h && h.patch.name) text = h.patch.name;
         tip.hidden = !text;
         if (text) {
@@ -286,22 +286,22 @@
   function counts(run) {
     var ids = Object.keys(S.results), det = ids.filter(hasDet).length;
     var boxes = ids.reduce(function (n, id) { return n + S.results[id].filter(function (d) { return d[4] >= conf(); }).length; }, 0);
-    var h = "已推理 <b>" + ids.length + "</b> / " + (run.total || S.st.patches.filter(inferByDefault).length) +
-      " 个 patch · 有检出（≥" + conf().toFixed(2) + "）<b>" + det + "</b> 个 patch · 检出框 <b>" + boxes + "</b>";
-    if (S.contacts) h += " · 合并重叠后 contact <b>" + S.contacts.length + "</b> 个";
-    if (isUpload() && S.st.source.patches_nodata) h += " · 无数据跳过 " + S.st.source.patches_nodata + " 个 patch";
-    if (run.elapsed_s) h += " · 用时 " + run.elapsed_s + " s";
+    var h = "Processed <b>" + ids.length + "</b> / " + (run.total || S.st.patches.filter(inferByDefault).length) +
+      " patches · With detections (≥" + conf().toFixed(2) + ") <b>" + det + "</b> patches · Boxes <b>" + boxes + "</b>";
+    if (S.contacts) h += " · Merged contacts <b>" + S.contacts.length + "</b>";
+    if (isUpload() && S.st.source.patches_nodata) h += " · Skipped (no data): " + S.st.source.patches_nodata + " patches";
+    if (run.elapsed_s) h += " · Elapsed: " + run.elapsed_s + " s";
     if (run.ultralytics) h += " · ultralytics " + run.ultralytics;
     $("counts").innerHTML = h;
     $("bar").style.width = (run.total ? 100 * (run.done || 0) / run.total : 0) + "%";
   }
   function busy(run) { return ["loading", "running", "mosaic"].indexOf(run.status) >= 0; }
   function setStatus(run) {
-    var t = { idle: "未开始", loading: "加载模型…", running: "推理中…", mosaic: "推理完成，正在拼接完整地图…", done: "完成 ✓", error: "出错：" + run.error }[run.status] || run.status;
+    var t = { idle: "Ready", loading: "Loading model…", running: "Running inference…", mosaic: "Inference complete; building the full map…", done: "Complete ✓", error: "Error: " + run.error }[run.status] || run.status;
     $("status").textContent = t;
     $("status").className = "status" + (run.status === "error" ? " err" : "");
     PICKERS.forEach(function (id) { $(id).disabled = busy(run); });
-    $("btn-start").textContent = run.status === "done" || run.status === "error" ? "▶ 重新推理" : "▶ 开始推理";
+    $("btn-start").textContent = run.status === "done" || run.status === "error" ? "▶ Run inference again" : "▶ Start inference";
   }
   function poll() {
     if (S.polling) return;
@@ -362,13 +362,13 @@
     $("empty").hidden = true; $("detail").hidden = false;
     $("d-title").textContent = id;
     var where = S.st.utm0
-      ? "中心 E " + (S.st.utm0[0] + S.st.m_per_px * (p.x + 75)).toFixed(1) + " N " + (S.st.utm0[1] - S.st.m_per_px * (p.y + 75)).toFixed(1)
-      : "中心像素 " + (p.x + 75) + ", " + (p.y + 75) + "（无地理坐标）";
-    var head = isUpload() ? "上传图像" + (p.split === "nodata" ? " · 无数据，未推理" : "")
-      : (isPatchSet() ? p.name + " · " : "") + (p.chunk !== "" ? "spatial chunk " + p.chunk + " · " + p.group + " · " + p.split : "不在 bundle 清单里");
-    if (!S.st.utm0 && S.st.cell_inset === 0) where = "文件名里没有坐标，按文件名排列";
+      ? "Centre E " + (S.st.utm0[0] + S.st.m_per_px * (p.x + 75)).toFixed(1) + " N " + (S.st.utm0[1] - S.st.m_per_px * (p.y + 75)).toFixed(1)
+      : "Centre pixel " + (p.x + 75) + ", " + (p.y + 75) + " (not georeferenced)";
+    var head = isUpload() ? "Uploaded image" + (p.split === "nodata" ? " · No data; not processed" : "")
+      : (isPatchSet() ? p.name + " · " : "") + (p.chunk !== "" ? "spatial chunk " + p.chunk + " · " + p.group + " · " + p.split : "Not listed in the dataset bundle");
+    if (!S.st.utm0 && S.st.cell_inset === 0) where = "No coordinates in filenames; arranged by filename";
     $("d-meta").textContent = head + " · " + where +
-      " · " + (dets ? "已推理，" + dets.filter(function (d) { return d[4] >= conf(); }).length + " 个检出 ≥ " + conf().toFixed(2) : "尚未推理");
+      " · " + (dets ? "Processed; detections ≥ " + conf().toFixed(2) + ": " + dets.filter(function (d) { return d[4] >= conf(); }).length : "Not processed");
     var img = $("d-img"), key = S.st.source.key + "/" + id;
     if (img.dataset.id !== key) { img.dataset.id = key; img.src = "/api/image/" + id + ".png?k=" + S.st.source.key; }
     var s = $("d-svg"); while (s.firstChild) s.removeChild(s.firstChild);
@@ -382,22 +382,22 @@
       }
     }
     if ($("d-gt").checked) p.gt.forEach(function (g) { box(g, "#ff9f1c", "4 2", "label"); });
-    var rows = ["<tr><th>#</th><th>置信度</th><th>cx, cy, w, h (YOLO)</th><th>像素 x0,y0–x1,y1</th></tr>"];
+    var rows = ["<tr><th>#</th><th>Confidence</th><th>cx, cy, w, h (YOLO)</th><th>Pixel x0,y0–x1,y1</th></tr>"];
     (dets || []).forEach(function (d, i) {
       var hi = d[4] >= conf();
       if (hi || $("d-low").checked) box(d, hi ? "#ff2d2d" : "#9aa1ad", hi ? null : "3 2", d[4].toFixed(2));
-      rows.push("<tr><td>" + i + "</td><td>" + d[4].toFixed(3) + (hi ? "" : " (低于阈值)") + "</td><td>" + d.slice(0, 4).map(function (v) { return v.toFixed(3); }).join(", ") +
+      rows.push("<tr><td>" + i + "</td><td>" + d[4].toFixed(3) + (hi ? "" : " (below threshold)") + "</td><td>" + d.slice(0, 4).map(function (v) { return v.toFixed(3); }).join(", ") +
         "</td><td>" + [(d[0] - d[2] / 2) * P, (d[1] - d[3] / 2) * P, (d[0] + d[2] / 2) * P, (d[1] + d[3] / 2) * P].map(function (v) { return v.toFixed(0); }).join(", ") + "</td></tr>");
     });
-    if (!dets || !dets.length) rows.push('<tr><td colspan="4">' + (dets ? "没有检出（≥0.05）" : "尚未推理") + "</td></tr>");
+    if (!dets || !dets.length) rows.push('<tr><td colspan="4">' + (dets ? "No detections (≥0.05)" : "Not processed") + "</td></tr>");
     $("d-table").innerHTML = rows.join("");
   }
 
   // ------------------------------------------------------------------ data source + model pickers
   function sourceLabel(s) {
     if (s.kind === "bundle") return s.name;
-    if (s.kind === "patches") return "📁 " + s.name + "（" + s.count + " 个 patch）";
-    return s.name + (s.size ? "（" + s.size[0] + "×" + s.size[1] + "）" : "");
+    if (s.kind === "patches") return "📁 " + s.name + " (" + s.count + " patches)";
+    return s.name + (s.size ? " (" + s.size[0] + "×" + s.size[1] + ")" : "");
   }
   function fillPickers(st) {
     $("src").innerHTML = st.sources.map(function (s) {
@@ -405,26 +405,26 @@
     }).join("");
     $("model").innerHTML = st.models.map(function (m) {
       return '<option value="' + esc(m.key) + '"' + (m.key === st.model.key ? " selected" : "") + ">" +
-        esc(m.key === "default" ? "默认 · " + m.name : m.name + " · " + m.sha256.slice(0, 8)) + "</option>";
+        esc(m.key === "default" ? "Default · " + m.name : m.name + " · " + m.sha256.slice(0, 8)) + "</option>";
     }).join("");
     var s = st.source, info;
-    if (s.kind === "bundle") info = "导出的 150×150 patch · 0.1 m/px · UTM · 含人工标签";
-    else if (s.kind === "patches") info = s.count + " 个 150×150 patch · " +
-      (s.layout === "coords" ? "按文件名里的 x/y 放到地图上" : "按文件名排列（文件名里没有可用坐标）") +
-      (s.layout_note ? "（" + s.layout_note + "）" : "") +
-      (s.georef ? " · bundle 文件名 → UTM" : " · 无地理坐标（已确认 0.1 m/px）") +
-      (s.matched_bundle ? " · " + s.matched_bundle + " 个在 bundle 清单里（带人工标签）" : "") +
-      (s.skipped_count ? " · 跳过 " + s.skipped_count + " 个文件" : "") + " · 全部推理";
+    if (s.kind === "bundle") info = "150×150 patches · 0.1 m/px · UTM · Annotations available";
+    else if (s.kind === "patches") info = s.count + " 150×150 patches · " +
+      (s.layout === "coords" ? "Positioned using x/y in filenames" : "Arranged by filename (no usable coordinates)") +
+      (s.layout_note ? " (" + s.layout_note + ")" : "") +
+      (s.georef ? " · Bundle filenames → UTM" : " · Not georeferenced (0.1 m/px confirmed)") +
+      (s.matched_bundle ? " · " + s.matched_bundle + " matched to the bundle (annotations available)" : "") +
+      (s.skipped_count ? " · Skipped: " + s.skipped_count + " files" : "") + " · All patches included";
     else info = s.size[0] + "×" + s.size[1] + " px · " + s.format + " · " + s.bands +
-      (s.georef ? " · 0.1 m/px · 左上角 E " + s.georef.E0 + " N " + s.georef.N0 + (s.georef.epsg ? " · EPSG:" + s.georef.epsg : "")
-                : " · 无地理坐标（已确认 0.1 m/px，只输出像素坐标）") +
-      (s.opacity ? " · " + s.opacity : "") + " · 150 px patch，每 100 px 一个";
+      (s.georef ? " · 0.1 m/px · Top-left E " + s.georef.E0 + " N " + s.georef.N0 + (s.georef.epsg ? " · EPSG:" + s.georef.epsg : "")
+                : " · Not georeferenced (0.1 m/px confirmed; pixel coordinates only)") +
+      (s.opacity ? " · " + s.opacity : "") + " · 150 px patches, 100 px stride";
     $("src-info").textContent = info;
-    $("src-sub").textContent = s.kind === "bundle" ? "test 区域 · spatial chunks 10–11" : (s.kind === "patches" ? "patch 文件夹 · " : "上传图像 · ") + s.name;
-    $("src-info").title = (s.skipped || []).map(function (k) { return "跳过 " + k.file + "：" + k.reason; }).join("\n");
+    $("src-sub").textContent = s.kind === "bundle" ? "Test area · spatial chunks 10–11" : (s.kind === "patches" ? "Patch folder · " : "Uploaded image · ") + s.name;
+    $("src-info").title = (s.skipped || []).map(function (k) { return "Skipped " + k.file + ": " + k.reason; }).join("\n");
     var m = st.model;
-    $("model-info").textContent = (m.names ? "类别 " + m.names.join(", ") + " · " : "") + "imgsz " + (m.imgsz || 256) +
-      (m.trained_ultralytics ? " · 训练用 ultralytics " + m.trained_ultralytics : "") + " · SHA-256 " + m.sha256.slice(0, 12);
+    $("model-info").textContent = (m.names ? "Classes: " + m.names.join(", ") + " · " : "") + "imgsz " + (m.imgsz || 256) +
+      (m.trained_ultralytics ? " · Trained with Ultralytics " + m.trained_ultralytics : "") + " · SHA-256 " + m.sha256.slice(0, 12);
     $("model-info").title = st.weights;
     document.body.classList.toggle("has-gt", s.kind === "bundle" || !!s.has_gt);
     document.body.classList.toggle("has-buffer", s.kind === "bundle");
@@ -435,10 +435,10 @@
   function choose(body) {
     return post("/api/select", body).catch(function (e) {
       if (e.data && e.data.needs_res_confirm) {
-        var ok = confirm("「" + e.data.name + "」没有地理坐标，页面无法检查它的分辨率。\n\n" +
-          "模型按 0.1 m/px 训练；只有在确定这张图就是 0.1 m/px（1 像素 = 10 cm）时才继续，否则目标尺寸不对，检测结果不可信。\n\n" +
-          "结果只会有像素坐标，没有 UTM。确认是 0.1 m/px？");
-        if (!ok) throw new Error("未确认分辨率，没有切换");
+        var ok = confirm(e.data.name + " has no georeferencing, so its resolution cannot be checked.\n\n" +
+          "The model was trained at 0.1 m/px (10 cm per pixel). Continue only if this image has that resolution; otherwise object sizes and detections will be unreliable.\n\n" +
+          "Results will contain pixel coordinates only, without UTM coordinates. Confirm 0.1 m/px?");
+        if (!ok) throw new Error("Resolution was not confirmed; the data source was not changed");
         return post("/api/select", Object.assign({}, body, { confirm_res: true }));
       }
       throw e;
@@ -454,14 +454,14 @@
       x.setRequestHeader("Content-Type", "application/octet-stream");
       x.upload.onprogress = function (e) {
         if (!e.lengthComputable) return;
-        note(e.loaded < e.total ? "上传 " + label + " " + Math.round(100 * e.loaded / e.total) + "%"
-          : { image: "检查并转换 ", patches: "检查 patch ", weights: "加载并检查模型 " }[kind] + label + "…");
+        note(e.loaded < e.total ? "Uploading " + label + " " + Math.round(100 * e.loaded / e.total) + "%"
+          : { image: "Checking and converting ", patches: "Checking patches: ", weights: "Loading and checking model: " }[kind] + label + "…");
       };
       x.onload = function () {
         var j; try { j = JSON.parse(x.responseText); } catch (e) { j = { error: "HTTP " + x.status }; }
         if (x.status === 200) resolve(j.item); else reject(new Error(j.error || "HTTP " + x.status));
       };
-      x.onerror = function () { reject(new Error("上传中断")); };
+      x.onerror = function () { reject(new Error("Upload interrupted")); };
       x.send(body);
     });
   }
@@ -478,11 +478,11 @@
     upload(kind, body, label)
       .then(function (it) { item = it; var b = {}; b[key] = it.key; return choose(b); })
       .then(function () {
-        var skip = item.skipped_count ? "，跳过 " + item.skipped_count + " 个文件（" +
-          item.skipped.slice(0, 3).map(function (k) { return k.file.split("/").pop() + "：" + k.reason; }).join("；") + (item.skipped_count > 3 ? "…" : "") + "）" : "";
-        note({ image: "已载入图像 ", patches: "已载入 ", weights: "已载入模型 " }[kind] + label + (kind === "patches" ? "（" + item.count + " 个 patch）" : "") + skip, !!skip);
+        var skip = item.skipped_count ? ", skipped " + item.skipped_count + " files (" +
+          item.skipped.slice(0, 3).map(function (k) { return k.file.split("/").pop() + ": " + k.reason; }).join("; ") + (item.skipped_count > 3 ? "…" : "") + ")" : "";
+        note({ image: "Loaded image: ", patches: "Loaded ", weights: "Loaded model: " }[kind] + label + (kind === "patches" ? " (" + item.count + " patches)" : "") + skip, !!skip);
       })
-      .catch(function (e) { note("未能使用 " + label + "：" + e.message, true); return load(); });
+      .catch(function (e) { note("Could not use " + label + ": " + e.message, true); return load(); });
   }
   function onFile(kind, input, fromDir) {
     var files = Array.prototype.slice.call(input.files); input.value = "";   // the same files can be chosen again later
@@ -490,22 +490,22 @@
     if (kind === "weights" || (!fromDir && files.length === 1)) {
       var f = files[0], ext = (f.name.match(/\.[^.]+$/) || [""])[0].toLowerCase();
       var okExt = kind === "image" ? [".tif", ".tiff", ".png"] : [".pt"];
-      if (okExt.indexOf(ext) < 0) return note("只接受 " + okExt.join("/") + " 文件：" + f.name, true);
+      if (okExt.indexOf(ext) < 0) return note("Unsupported file: " + f.name + ". Accepted formats: " + okExt.join("/"), true);
       return send(kind, f, f.name, kind === "image" ? "source" : "model");
     }
     // several files or a folder: a set of 150x150 patches (hidden files and other types are left out here)
     var pat = files.filter(function (f) { return /\.(png|tiff?)$/i.test(f.name) && f.name.charAt(0) !== "."; });
-    if (!pat.length) return note("所选内容里没有 PNG/TIFF 文件", true);
+    if (!pat.length) return note("The selection contains no PNG or TIFF files", true);
     // only one image among the chosen files (e.g. a folder with a GeoTIFF and its CSV/JSON): a whole image
     if (pat.length === 1) return send("image", pat[0], pat[0].name, "source");
     var total = pat.reduce(function (n, f) { return n + f.size; }, 0);
-    if (total > 4 * 1024 * 1024 * 1024) return note("所选 patch 共 " + (total / 1e9).toFixed(1) + " GB，超过 4 GB 上限", true);
-    var label = fromDir && pat[0].webkitRelativePath ? pat[0].webkitRelativePath.split("/")[0] : pat[0].name + " 等 " + pat.length + " 个文件";
+    if (total > 4 * 1024 * 1024 * 1024) return note("Selected patches total " + (total / 1e9).toFixed(1) + " GB, exceeding the 4 GB limit", true);
+    var label = fromDir && pat[0].webkitRelativePath ? pat[0].webkitRelativePath.split("/")[0] : pat[0].name + " and others: " + pat.length + " files";
     send("patches", packPatches(pat), label, "source");
   }
   $("btn-src-file").addEventListener("click", function () { $("src-file").click(); });
   $("btn-model-file").addEventListener("click", function () {
-    if (confirm("模型权重（.pt）加载时会执行文件里的代码。只选择你自己训练或信任来源的权重。继续？")) $("model-file").click();
+    if (confirm("Loading model weights (.pt) can execute code stored in the file. Choose only weights you trained yourself or obtained from a trusted source. Continue?")) $("model-file").click();
   });
   $("btn-dir-file").addEventListener("click", function () { $("dir-file").click(); });
   $("src-file").addEventListener("change", function () { onFile("image", this, false); });
@@ -513,11 +513,11 @@
   $("model-file").addEventListener("change", function () { onFile("weights", this, false); });
   $("src").addEventListener("change", function () {
     pickerBusy(true);
-    choose({ source: this.value }).catch(function (e) { note("无法切换数据：" + e.message, true); return load(); });
+    choose({ source: this.value }).catch(function (e) { note("Could not change data source: " + e.message, true); return load(); });
   });
   $("model").addEventListener("change", function () {
     pickerBusy(true);
-    choose({ model: this.value }).catch(function (e) { note("无法切换模型：" + e.message, true); return load(); });
+    choose({ model: this.value }).catch(function (e) { note("Could not change model: " + e.message, true); return load(); });
   });
 
   // ------------------------------------------------------------------ events
@@ -525,18 +525,18 @@
     var withBuffer = S.st.source.kind === "bundle" && $("buffer").checked;
     post("/api/start", { conf: conf(), include_buffer: withBuffer })
       .then(function () { resetMap(withBuffer); poll(); })
-      .catch(function (e) { note("无法开始：" + e.message, true); });
+      .catch(function (e) { note("Could not start inference: " + e.message, true); });
   });
   $("btn-clear").addEventListener("click", function () {
-    if (!confirm("删除当前数据（" + S.st.source.name + "）在 outputs/ 里保存的全部推理结果？\n（只删除本页面生成的推理结果文件，不会删除模型、图片或其他任何文件；删除后不能恢复）")) return;
+    if (!confirm("Delete all saved inference results for " + S.st.source.name + " from outputs/?\nOnly inference result files created by this application will be deleted. Models, source images and other files will be kept. This cannot be undone.")) return;
     post("/api/clear_results", {})
       .then(function (j) {
         resetMap(false); S.sel = null; requestDraw();
         $("detail").hidden = true; $("empty").hidden = false;
         setStatus(j.run); counts(j.run);
-        note("已删除 " + j.deleted.length + " 个推理结果文件");
+        note("Deleted " + j.deleted.length + " inference result files");
       })
-      .catch(function (e) { note("无法删除：" + e.message, true); });
+      .catch(function (e) { note("Could not delete results: " + e.message, true); });
   });
   var confTimer = null;
   $("conf").addEventListener("change", function () {

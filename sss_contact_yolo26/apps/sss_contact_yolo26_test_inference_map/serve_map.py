@@ -214,7 +214,7 @@ class BundleSource:
     """Test area of the spatial split bundle: the exported chunk 10-11 patches, with labels and the chunk-10 buffer."""
     key = "bundle"
     kind = "bundle"
-    name = "测试区 · spatial chunks 10–11"
+    name = "Test area · spatial chunks 10–11"
 
     def __init__(self, outputs):
         self.patches, self.E0, self.N0 = load_patches()
@@ -317,8 +317,9 @@ class ImageSource:
                          patches_nodata=sum(p["split"] == "nodata" for p in self.patches))
 
     def describe(self):
-        return {k: self.meta.get(k) for k in ("key", "name", "sha256", "size", "format", "bands", "opacity", "georef",
-                                               "res_confirmed")}
+        public = image_public(self.meta)
+        return {k: public.get(k, self.meta.get(k)) for k in
+                ("key", "name", "sha256", "size", "format", "bands", "opacity", "georef", "res_confirmed")}
 
     def model_input(self, p):
         # (H, W, 1) uint8 arrays give exactly the predictions of the same patch read from an L-mode PNG
@@ -346,14 +347,14 @@ class NeedsConfirm(Exception):
 
 def check_size(w, h):
     if w < PATCH or h < PATCH:
-        raise UploadError("图像只有 %d×%d px，小于一个 patch（%d×%d）" % (w, h, PATCH, PATCH))
+        raise UploadError("Image is %d×%d px, smaller than one patch (%d×%d)" % (w, h, PATCH, PATCH))
     if w * h > MAX_PIXELS:
-        raise UploadError("图像 %d×%d px（%.0f 百万像素）超过上限 %.0f 百万像素：服务器处理时要在内存里保留几份整图，"
-                          "请先裁成几块再分别上传" % (w, h, w * h / 1e6, MAX_PIXELS / 1e6))
+        raise UploadError("Image is %d×%d px (%.0f million pixels), exceeding the %.0f-million-pixel limit. Processing keeps several full image arrays in memory; "
+                          "crop the image into smaller regions and upload them separately" % (w, h, w * h / 1e6, MAX_PIXELS / 1e6))
 
 
-PIL_MODE_MSG = {"1": "1 位黑白图像", "P": "调色板（palette）图像", "I;16": "16 位图像", "I;16B": "16 位图像",
-                "I": "32 位整数图像", "F": "32 位浮点图像", "CMYK": "CMYK 图像"}
+PIL_MODE_MSG = {"1": "1-bit black-and-white image", "P": "palette image", "I;16": "16-bit image", "I;16B": "16-bit image",
+                "I": "32-bit integer image", "F": "32-bit floating-point image", "CMYK": "CMYK image"}
 
 
 def read_pillow(path):
@@ -363,12 +364,12 @@ def read_pillow(path):
     try:
         im = Image.open(path)
     except Exception:  # noqa: BLE001 - any decoder failure means the file cannot be used
-        raise UploadError("无法读取这个文件：不是有效的 PNG/TIFF，或者是不支持的压缩方式")
+        raise UploadError("Cannot read this file: invalid PNG/TIFF or unsupported compression")
     with im:
         check_size(*im.size)
         if im.mode not in ("L", "LA", "RGB", "RGBA"):
-            raise UploadError("这是%s，不是 8 位灰度。第一版不做灰度拉伸，只接受 8 位灰度声呐图"
-                              % PIL_MODE_MSG.get(im.mode, "像素格式 %s 的图像" % im.mode))
+            raise UploadError("This is a %s. Only 8-bit grayscale sonar images are supported; intensity conversion is not applied"
+                              % PIL_MODE_MSG.get(im.mode, "image with pixel mode %s" % im.mode))
         a = np.asarray(im)
     return a if a.ndim == 3 else a[..., None]
 
@@ -387,7 +388,7 @@ def tiff_georef(page):
     trans, scale, tie = val(34264), val(33550), val(33922)
     if trans:                                   # ModelTransformationTag
         if abs(trans[1]) > 1e-12 or abs(trans[4]) > 1e-12:
-            raise UploadError("GeoTIFF 带旋转（ModelTransformation 不是北向上）；请导出为北向上的图像")
+            raise UploadError("The GeoTIFF has a rotated transform. Export a north-up image")
         sx, sy, e0, n0 = trans[0], -trans[5], trans[3], trans[7]
     elif scale and tie:                         # ModelPixelScaleTag + ModelTiepointTag
         sx, sy = scale[0], scale[1]
@@ -398,9 +399,9 @@ def tiff_georef(page):
     if keys.get(1025) == 2:                     # GTRasterTypeGeoKey = PixelIsPoint: tie point is the pixel centre
         e0, n0 = e0 - sx / 2, n0 + sy / 2
     if keys.get(1024) == 2 or (keys.get(2048) and not keys.get(3072)):
-        raise UploadError("GeoTIFF 用的是经纬度坐标；需要投影坐标（例如 UTM，单位米），才能按 0.1 m/px 切 patch")
+        raise UploadError("The GeoTIFF uses latitude/longitude. Projected coordinates in metres, such as UTM, are required for 0.1 m/px patches")
     if abs(sx - M_PER_PX) > RES_TOL or abs(sy - M_PER_PX) > RES_TOL:
-        raise UploadError("GeoTIFF 的分辨率是 %.4g × %.4g m/px；模型按 0.1 m/px 训练，第一版不做重采样" % (sx, sy))
+        raise UploadError("GeoTIFF resolution is %.4g × %.4g m/px. The model requires 0.1 m/px; this application does not resample images" % (sx, sy))
     return {"E0": round(e0, 3), "N0": round(n0, 3), "m_per_px": [sx, sy], "epsg": keys.get(3072)}
 
 
@@ -410,15 +411,15 @@ def read_tiff(path):
     try:
         tf = tifffile.TiffFile(path)
     except Exception:  # noqa: BLE001
-        raise UploadError("无法读取这个文件：不是有效的 TIFF")
+        raise UploadError("Cannot read this file: invalid TIFF")
     with tf:
         page = tf.pages[0]                      # full resolution; later pages are overviews
         if page.dtype != np.uint8:
-            raise UploadError("TIFF 像素类型是 %s，不是 8 位无符号整数（uint8）。第一版不做灰度拉伸，"
-                              "只接受 8 位灰度声呐图" % page.dtype)
+            raise UploadError("TIFF pixel type is %s, not 8-bit unsigned integer (uint8). Intensity conversion is not applied; "
+                              "only 8-bit grayscale sonar images are supported" % page.dtype)
         check_size(page.imagewidth, page.imagelength)
         if int(page.photometric) == 3:
-            raise UploadError("这是调色板（palette）TIFF，不是 8 位灰度")
+            raise UploadError("This is a palette TIFF, not 8-bit grayscale")
         geo = tiff_georef(page)
         nd = page.tags.get(42113)               # GDAL_NODATA
         nodata = None
@@ -437,7 +438,7 @@ def read_tiff(path):
         try:
             bands = read_pillow(path)
         except UploadError:
-            raise UploadError("这个 TIFF 的压缩方式读不了；请导出为不压缩或 Deflate 压缩的 TIFF 再试")
+            raise UploadError("Unsupported TIFF compression. Export an uncompressed or Deflate-compressed TIFF and try again")
     else:
         bands = np.moveaxis(a, axes.index("S"), -1) if "S" in axes else a[..., None]
     if white0:
@@ -450,18 +451,29 @@ def split_bands(bands):
     """-> (gray, opacity or None, description). A second band (or the 4th of RGBA) is treated as opacity."""
     s = bands.shape[2]
     if s in (1, 2):
-        return bands[..., 0], (bands[..., 1] if s == 2 else None), ("灰度 + opacity band" if s == 2 else "灰度")
+        return bands[..., 0], (bands[..., 1] if s == 2 else None), ("Grayscale + opacity band" if s == 2 else "Grayscale")
     if s in (3, 4):
         g = bands[..., 0]
         if not (np.array_equal(g, bands[..., 1]) and np.array_equal(g, bands[..., 2])):
-            raise UploadError("这是彩色图像（R、G、B 三个通道不相同）；只接受 8 位灰度声呐图")
-        return g, (bands[..., 3] if s == 4 else None), ("RGB（三通道相同，按灰度用）" + (" + alpha" if s == 4 else ""))
-    raise UploadError("图像有 %d 个 band；只接受 1 个灰度 band（可再带 1 个 opacity band）" % s)
+            raise UploadError("This is a color image (R, G and B differ). Only 8-bit grayscale sonar images are supported")
+        return g, (bands[..., 3] if s == 4 else None), ("RGB (equal channels, used as grayscale)" + (" + alpha" if s == 4 else ""))
+    raise UploadError("Image has %d bands. Use one grayscale band, optionally with one opacity band" % s)
 
 
 def image_public(meta):
-    return {k: meta.get(k) for k in ("key", "name", "size", "format", "bands", "opacity", "georef", "res_confirmed",
-                                      "uploaded_utc")}
+    public = {k: meta.get(k) for k in ("key", "name", "size", "format", "georef", "res_confirmed", "uploaded_utc")}
+    # Older uploads stored localized descriptions. Format their stable band/mask
+    # identifiers for display without rewriting the original upload metadata.
+    bands = meta.get("bands") or ""
+    if bands.startswith("RGB"):
+        public["bands"] = "RGB (equal channels, used as grayscale)" + (" + alpha" if "alpha" in bands else "")
+    else:
+        public["bands"] = "Grayscale" + (" + opacity band" if "opacity" in bands else "")
+    opacity = meta.get("opacity")
+    rules = re.findall(r"(opacity|nodata)\s*=\s*(-?\d+)", opacity or "")
+    public["opacity"] = ("; ".join("%s = %s is treated as no data" % rule for rule in rules)
+                         or "No-data mask applied") if opacity else None
+    return public
 
 
 def model_public(meta):
@@ -480,20 +492,20 @@ def decode_patch(data):
     try:
         im = Image.open(io.BytesIO(data))
     except Exception:  # noqa: BLE001
-        raise UploadError("无法读取（不是有效的 PNG/TIFF）")
+        raise UploadError("Cannot read file (invalid PNG/TIFF)")
     if im.size != (PATCH, PATCH):                        # checked before decoding: a whole mosaic is not loaded here
-        raise UploadError("%d×%d px，不是 %d×%d 的 patch%s" % (im.size[0], im.size[1], PATCH, PATCH,
-                          "（整幅图请用「选择图像/patch 文件…」只选这一个文件）" if max(im.size) > PATCH else ""))
+        raise UploadError("%d×%d px, not a %d×%d patch%s" % (im.size[0], im.size[1], PATCH, PATCH,
+                          " (for a full image, choose that file alone using Choose images or patches)" if max(im.size) > PATCH else ""))
     try:
         im.load()
     except Exception:  # noqa: BLE001
-        raise UploadError("无法读取（压缩方式不支持）")
+        raise UploadError("Cannot read file (unsupported compression)")
     if im.mode not in ("L", "LA", "RGB", "RGBA"):
-        raise UploadError("%s，不是 8 位灰度" % PIL_MODE_MSG.get(im.mode, "像素格式 " + im.mode))
+        raise UploadError("%s, not 8-bit grayscale" % PIL_MODE_MSG.get(im.mode, "pixel mode " + im.mode))
     a = np.asarray(im)
     if a.ndim == 3:
         if a.shape[2] >= 3 and not (np.array_equal(a[..., 0], a[..., 1]) and np.array_equal(a[..., 0], a[..., 2])):
-            raise UploadError("彩色图像（R、G、B 不相同）")
+            raise UploadError("Color image (R, G and B differ)")
         a = a[..., 0]
     return np.ascontiguousarray(a)
 
@@ -510,22 +522,22 @@ def ingest_patchset(tmp, label, sha, nbytes):
     with open(tmp, "rb") as f:
         hl = int.from_bytes(f.read(4), "big")
         if not 0 < hl <= 64 << 20:
-            raise UploadError("上传格式不对")
+            raise UploadError("Invalid upload format")
         files = json.loads(f.read(hl).decode("utf-8"))["files"]
         if not files or len(files) > MAX_PATCH_FILES:
-            raise UploadError("一次最多 %d 个 patch 文件（这次 %d 个）" % (MAX_PATCH_FILES, len(files)))
+            raise UploadError("At most %d patch files per upload (%d selected)" % (MAX_PATCH_FILES, len(files)))
         if 4 + hl + sum(int(x["size"]) for x in files) != nbytes:
-            raise UploadError("上传内容不完整")
+            raise UploadError("Incomplete upload")
         for x in files:
             data = f.read(int(x["size"]))
             name = str(x["name"])[-300:]
             base = os.path.basename(name)
             stem, ext = os.path.splitext(base)
             if ext.lower() not in IMAGE_EXT or base.startswith("."):
-                skipped.append({"file": name, "reason": "不是 PNG/TIFF"})
+                skipped.append({"file": name, "reason": "Not a PNG or TIFF file"})
                 continue
             if stem in seen:
-                skipped.append({"file": name, "reason": "文件名和另一个 patch 重复"})
+                skipped.append({"file": name, "reason": "Filename duplicates another patch"})
                 continue
             try:
                 arrays.append(decode_patch(data))
@@ -536,7 +548,7 @@ def ingest_patchset(tmp, label, sha, nbytes):
             entries.append({"file": name, "stem": stem})
     if not arrays:
         why = "；".join("%s：%s" % (s["file"], s["reason"]) for s in skipped[:3])
-        raise UploadError("没有可用的 patch（多选/文件夹只用于 150×150 的 8 位灰度 patch；整张大图请一次选一个文件）。" + why)
+        raise UploadError("No usable patches. Folders and multiple selections require 150×150, 8-bit grayscale patches. Select a full image one file at a time. " + why)
     # layout: by the pixel position in the file names when every file has one, else a grid in file-name order
     layout, note = "gallery", None
     pos = [POS_RE.search(e["stem"]) for e in entries]
@@ -545,9 +557,9 @@ def ingest_patchset(tmp, label, sha, nbytes):
         w = max(x for x, _ in xy) - min(x for x, _ in xy) + PATCH
         h = max(y for _, y in xy) - min(y for _, y in xy) + PATCH
         if len(set(xy)) != len(xy):
-            note = "文件名里的坐标有重复，改为按文件名排列"
+            note = "Duplicate coordinates in filenames; arranged by filename instead"
         elif w * h > MAX_PIXELS:
-            note = "文件名坐标覆盖 %.0f 百万像素，超过显示上限，改为按文件名排列" % (w * h / 1e6)
+            note = "Filename coordinates span %.0f million pixels, exceeding the display limit; arranged by filename instead" % (w * h / 1e6)
         else:
             layout = "coords"
             for e, (x, y) in zip(entries, xy):
@@ -610,11 +622,11 @@ def ingest_image(tmp, name, sha, nbytes):
     valid, notes = None, []
     if opacity is not None and not opacity.all():
         valid = opacity > 0
-        notes.append("opacity = 0 视为无数据")
+        notes.append("opacity = 0 is treated as no data")
     del bands, opacity                                   # large uploads: free the band stack early
     if nodata is not None and (gray == nodata).any():
         valid = (gray != nodata) if valid is None else valid & (gray != nodata)
-        notes.append("nodata = %d 视为无数据" % nodata)
+        notes.append("nodata = %d is treated as no data" % nodata)
     stage = os.path.join(IMAGES_DIR, ".writing_%s_%d" % (key, time.time_ns()))
     os.makedirs(stage)
     try:
@@ -642,12 +654,12 @@ def inspect_weights(path, allow_old):
     try:
         m = YOLO(path)
     except Exception as e:  # noqa: BLE001
-        raise UploadError("无法作为 Ultralytics 模型加载：%s: %s" % (type(e).__name__, e))
+        raise UploadError("Cannot load as an Ultralytics model: %s: %s" % (type(e).__name__, e))
     if m.task != "detect":
-        raise UploadError("模型任务是 %s，不是目标检测（detect）" % m.task)
+        raise UploadError("Model task is %s; a detection model (detect) is required" % m.task)
     conv = next((x for x in m.model.modules() if isinstance(x, torch.nn.Conv2d)), None)
     if conv is None or conv.in_channels != 1:
-        raise UploadError("模型第一层输入是 %s 通道；这个页面按训练方式给模型单通道灰度 patch，只接受单通道模型"
+        raise UploadError("Model input has %s channels. This application supplies single-channel grayscale patches and requires a single-channel model"
                           % (conv.in_channels if conv is not None else "?"))
     ckpt = getattr(m, "ckpt", None) or {}
     imgsz = (ckpt.get("train_args") or {}).get("imgsz")
@@ -708,7 +720,7 @@ class Runner:
         """Switch data source and/or weights (only while no inference is running)."""
         with self.lock:
             if self.run.get("status") in BUSY:
-                raise RuntimeError("推理正在运行，结束后再切换")
+                raise RuntimeError("Inference is running. Wait until it finishes before switching")
         new_src = new_model = None
         if source and source != self.src.key:
             if source == "bundle":
@@ -735,7 +747,7 @@ class Runner:
                 new_model = dict(meta, path=os.path.join(MODELS_DIR, model, "weights.pt"), imgsz=meta.get("imgsz") or IMGSZ)
         with self.lock:
             if self.run.get("status") in BUSY:
-                raise RuntimeError("推理正在运行，结束后再切换")
+                raise RuntimeError("Inference is running. Wait until it finishes before switching")
             if new_model:
                 self.model = new_model
             if new_src or new_model:
@@ -1062,9 +1074,9 @@ def make_handler(runner, port):
             if limit is None:
                 err = (404, "not found")
             elif kind != "patches" and ext not in (IMAGE_EXT if kind == "image" else (".pt",)):
-                err = (400, "只接受 %s 文件" % ("/".join(IMAGE_EXT) if kind == "image" else ".pt"))
+                err = (400, "Only %s files are accepted" % ("/".join(IMAGE_EXT) if kind == "image" else ".pt"))
             elif not 0 < n <= limit:
-                err = (413, "文件大小 %.1f MB 超过上限 %.0f MB" % (n / 1e6, limit / 1e6))
+                err = (413, "File size %.1f MB exceeds the %.0f MB limit" % (n / 1e6, limit / 1e6))
             if err:
                 self.close_connection = True          # the unread body is dropped with the connection
                 return self.send(err[0], {"error": err[1]})
@@ -1167,10 +1179,10 @@ def main():
     try:
         probe.bind(("127.0.0.1", args.port))
     except OSError:
-        raise SystemExit("端口 %d 已被占用：地图服务可能已经在另一个终端运行。\n"
-                         "  - 如果已经在运行，直接打开 http://127.0.0.1:%d/\n"
-                         "  - 要重启：在运行它的终端按 Ctrl+C，再重新运行本命令\n"
-                         "  - 或换端口：加上 --port %d" % (args.port, args.port, args.port + 1))
+        raise SystemExit("Port %d is already in use. The map server may be running in another terminal.\n"
+                         "  - If it is already running, open http://127.0.0.1:%d/\n"
+                         "  - To restart, press Ctrl+C in its terminal, then run this command again\n"
+                         "  - Or use another port: add --port %d" % (args.port, args.port, args.port + 1))
     finally:
         probe.close()
     runner = Runner(args)

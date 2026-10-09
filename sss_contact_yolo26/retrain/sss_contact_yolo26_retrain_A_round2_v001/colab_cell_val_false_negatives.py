@@ -1,5 +1,5 @@
-# val（chunks 8–9）漏报：黄粗框 = 漏检的 GT，黄细框 = 已检出的 GT，
-# 绿 = 模型预测 ≥ CONF，灰虚线 = 模型低置信度预测 (0.05–CONF)，框上数字为置信度
+# Validation false negatives (chunks 8-9): thick yellow = missed GT; thin yellow = detected GT;
+# green = predictions >= CONF; gray dashed = predictions between 0.05 and CONF; numbers show confidence
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -7,7 +7,7 @@ from matplotlib.patches import Rectangle
 from PIL import Image
 from scipy.optimize import linear_sum_assignment
 
-CONF, IOU_T = 0.25, 0.50        # 与混淆矩阵相同的 0.25；Ultralytics 混淆矩阵的匹配规则略有不同，数量可能与 53 差几个
+CONF, IOU_T = 0.25, 0.50        # Same confidence 0.25 as the confusion matrix; different matching rules may change its count of 53
 PER_PAGE = 30
 img_dir, lab_dir = BUNDLE_ROOT / 'data' / 'images' / 'val', BUNDLE_ROOT / 'data' / 'labels' / 'val'
 best_model.model.ch = 1
@@ -28,7 +28,7 @@ for r in best_model.predict([str(p) for p in labelled], imgsz=TRAIN_IMG_SIZE, co
     preds = [(b, c) for b, c in zip(r.boxes.xyxyn.cpu().numpy(), r.boxes.conf.cpu().numpy())]
     hi = [(b, c) for b, c in preds if c >= CONF]
     matched_gt = set()
-    if hi:   # 一对一匹配（与混淆矩阵同一阈值）
+    if hi:   # One-to-one matching at the confusion-matrix threshold
         m = np.array([[iou(g, b) for b, _ in hi] for g in gts])
         wgt = np.where(m >= IOU_T, min(m.shape) + 1 + m, 0)
         matched_gt = {int(g) for g, p in zip(*linear_sum_assignment(wgt, maximize=True)) if wgt[g, p] > 0}
@@ -36,15 +36,15 @@ for r in best_model.predict([str(p) for p in labelled], imgsz=TRAIN_IMG_SIZE, co
         if gi in matched_gt:
             continue
         overlaps = [(iou(g, b), c) for b, c in preds]
-        best_conf = max((c for v, c in overlaps if v >= IOU_T), default=0.0)   # 模型在这个 GT 上的最高置信度
+        best_conf = max((c for v, c in overlaps if v >= IOU_T), default=0.0)   # Highest prediction confidence overlapping this GT
         best_iou_hi = max((v for (v, c) in overlaps if c >= CONF), default=0.0)
         fn_rows.append(dict(path=r.path, gts=gts, gi=gi, preds=preds, best_conf=best_conf, best_iou_hi=best_iou_hi))
 
 kind = lambda d: ('low-conf' if d['best_conf'] > 0 else 'mislocalised' if d['best_iou_hi'] > 0.1 else 'not detected')
-KIND_ZH = {'low-conf': '低置信度检出 (<CONF)', 'mislocalised': '框位置不对 (IoU<0.5)', 'not detected': '完全没检出'}
-print(f'conf {CONF} / IoU {IOU_T}: {len(fn_rows)} 个漏检 GT，分布在 {len({d["path"] for d in fn_rows})} 个 patch')
-for k in KIND_ZH:
-    print(f'  {KIND_ZH[k]}: {sum(kind(d) == k for d in fn_rows)}')
+KIND_LABELS = {'low-conf': 'Low-confidence detection (<CONF)', 'mislocalised': 'Mislocalized box (IoU<0.5)', 'not detected': 'Not detected'}
+print(f'conf {CONF} / IoU {IOU_T}: {len(fn_rows)} missed GT boxes across {len({d["path"] for d in fn_rows})} patches')
+for k in KIND_LABELS:
+    print(f'  {KIND_LABELS[k]}: {sum(kind(d) == k for d in fn_rows)}')
 fn_rows.sort(key=lambda d: (-d['best_conf'], -d['best_iou_hi']))
 
 def rect(ax, b, color, lw, ls='-'):

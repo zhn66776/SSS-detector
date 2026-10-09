@@ -202,16 +202,16 @@ def make_html(patches: list[dict[str, Any]], stats: dict[str, Any], official: li
     }
     payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     stats_line = "；".join(
-        f"{g}: {v['positive_images']}正/{v['negative_images']}负/{v['bbox_total']}框"
+        f"{g}: {v['positive_images']} positive / {v['negative_images']} negative / {v['bbox_total']} boxes"
         for g, v in stats.items()
     )
     official_line = (
-        f"官方点记录 {official_stats['point_records_in_patch_footprints']} 条；"
-        f"线记录 {official_stats['line_records_by_endpoint_or_midpoint']} 条。"
+        f"Survey points: {official_stats['point_records_in_patch_footprints']}; "
+        f"line records: {official_stats['line_records_by_endpoint_or_midpoint']}."
     )
     return """<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8">
-<title>前三个 validation group 对照审查</title>
+<html lang="en"><head><meta charset="utf-8">
+<title>Validation Groups 1–3: Annotation Review</title>
 <style>
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background:#111;color:#eee}
 header{padding:16px 22px;background:#20252b;position:sticky;top:0;z-index:5}
@@ -225,21 +225,21 @@ h1{font-size:20px;margin:0 0 6px}.sub{font-size:13px;color:#b9c0c8}
 #info{font-size:13px;line-height:1.5;color:#d8dde2}
 button{background:#303943;color:#fff;border:1px solid #59636e;border-radius:4px;padding:5px 8px}
 </style></head><body>
-<header><h1>前三个 validation group：人工标注与官方 contact list 对照</h1>
+<header><h1>Validation groups 1–3: annotations and survey contacts</h1>
 <div class="sub">""" + stats_line + "<br>" + official_line + """<br>
-官方图层只用于对照，不会生成或修改任何标签。点击地图中的 patch 查看原图。</div></header>
+The survey layer is for reference only and does not create or change annotations. Click a patch to inspect the original image.</div></header>
 <div class="layout"><section class="panel">
-<div class="controls"><label><input id="neg" type="checkbox" checked>显示负样本 patch</label>
-<label><input id="official" type="checkbox" checked>显示官方 contacts</label>
-<button id="reset">恢复全图</button></div>
+<div class="controls"><label><input id="neg" type="checkbox" checked>Show negative patches</label>
+<label><input id="official" type="checkbox" checked>Show survey contacts</label>
+<button id="reset">Fit all patches</button></div>
 <div class="legend"><span><i class="swatch" style="background:#9b59b6"></i>group01</span>
 <span><i class="swatch" style="background:#e67e22"></i>group02</span>
 <span><i class="swatch" style="background:#16a085"></i>group03</span>
-<span><i class="swatch" style="background:#e74c3c"></i>人工正样本</span>
-<span><i class="swatch" style="background:#2878c8"></i>官方点/线</span></div>
+<span><i class="swatch" style="background:#e74c3c"></i>Annotated positive patches</span>
+<span><i class="swatch" style="background:#2878c8"></i>Survey points/lines</span></div>
 <svg id="map" viewBox="0 0 """ + str(width) + " " + str(height) + """"></svg>
-</section><section class="panel"><img id="preview" alt="点击地图选择 patch">
-<div id="info">点击左侧地图中的 patch。</div></section></div>
+</section><section class="panel"><img id="preview" alt="Select a patch on the map">
+<div id="info">Click a patch on the map to the left.</div></section></div>
 <script>
 const DATA = """ + payload + """;
 const svg=document.getElementById("map"), preview=document.getElementById("preview"), info=document.getElementById("info");
@@ -269,10 +269,10 @@ function render(){
 function selectPatch(i){
   const p=DATA.patches[i];
   preview.src=p.image;
-  let s="<b>"+p.group+" / "+p.patch_id+"</b><br>中心 E="+p.centre_e.toFixed(3)+" N="+p.centre_n.toFixed(3);
-  s+="<br>人工 bbox："+p.bboxes.length+" 个<br>官方对照记录："+p.official.length+" 条";
-  if(p.bboxes.length){s+="<br><br><b>人工框</b><br>";p.bboxes.forEach(function(b,j){s+="#"+(j+1)+" "+b.label+" ["+b.x1.toFixed(1)+","+b.y1.toFixed(1)+"]–["+b.x2.toFixed(1)+","+b.y2.toFixed(1)+"]<br>";});}
-  if(p.official.length){s+="<br><b>官方对照</b><br>";p.official.forEach(function(o){s+=o.kind+" "+o.uid+" "+o.description+"<br>";});}
+  let s="<b>"+p.group+" / "+p.patch_id+"</b><br>Centre E="+p.centre_e.toFixed(3)+" N="+p.centre_n.toFixed(3);
+  s+="<br>Annotation boxes: "+p.bboxes.length+"<br>Survey reference records: "+p.official.length+"";
+  if(p.bboxes.length){s+="<br><br><b>Annotation boxes</b><br>";p.bboxes.forEach(function(b,j){s+="#"+(j+1)+" "+b.label+" ["+b.x1.toFixed(1)+","+b.y1.toFixed(1)+"]–["+b.x2.toFixed(1)+","+b.y2.toFixed(1)+"]<br>";});}
+  if(p.official.length){s+="<br><b>Survey reference</b><br>";p.official.forEach(function(o){s+=o.kind+" "+o.uid+" "+o.description+"<br>";});}
   info.innerHTML=s;
 }
 document.getElementById("neg").onchange=render;

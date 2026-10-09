@@ -35,7 +35,7 @@ function renderImage() {
   loading.classList.remove("hidden");
   image.onload = () => loading.classList.add("hidden");
   image.onerror = () => {
-    loading.textContent = "图片加载失败";
+    loading.textContent = "Image could not be loaded";
     loading.classList.remove("hidden");
   };
   image.src = state.mode === "raw" ? item.raw_url : item.preview_url;
@@ -54,8 +54,8 @@ function countDecisions() {
 
 function renderProgress() {
   const counts = countDecisions();
-  $("position-label").textContent = state.items.length ? `第 ${state.index + 1} / ${state.items.length} 张` : "没有可显示的 patch";
-  $("count-label").textContent = `已保留 ${counts.keep} · 已剔除 ${counts.drop} · 未审核 ${counts.undecided}`;
+  $("position-label").textContent = state.items.length ? `Patch ${state.index + 1} / ${state.items.length}` : "No patches to display";
+  $("count-label").textContent = `Kept ${counts.keep} · Dropped ${counts.drop} · Not reviewed ${counts.undecided}`;
   $("progress-bar").style.width = `${state.items.length ? ((counts.keep + counts.drop) / state.items.length) * 100 : 0}%`;
 }
 
@@ -78,7 +78,7 @@ function renderDetails() {
   checkbox.checked = status === "keep";
   const statusElement = $("decision-status");
   statusElement.className = "decision-status";
-  statusElement.textContent = status === "keep" ? "已保留" : status === "drop" ? "已剔除" : "未审核";
+  statusElement.textContent = status === "keep" ? "Kept" : status === "drop" ? "Dropped" : "Not reviewed";
   if (status !== "undecided") statusElement.classList.add(status);
 }
 
@@ -91,7 +91,7 @@ function render() {
 async function request(path, options = {}) {
   const response = await fetch(path, options);
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || `请求失败: ${response.status}`);
+  if (!response.ok) throw new Error(payload.error || `Request failed: ${response.status}`);
   return payload;
 }
 
@@ -109,7 +109,7 @@ async function commitCurrent() {
       body: JSON.stringify({ uid: item.uid, status }),
     });
     state.decisions[item.uid] = status;
-    setMessage(status === "keep" ? "已记录为保留。" : "未勾选，已记录为剔除。", false);
+    setMessage(status === "keep" ? "Saved: keep." : "Unchecked; saved: drop.", false);
     return payload;
   } finally {
     state.busy = false;
@@ -136,7 +136,7 @@ async function nextItem() {
         render();
       } else {
         renderProgress();
-        setMessage("全部 patch 已完成筛选，可以导出当前结果。", false);
+        setMessage("All patches have been reviewed. You can export the results.", false);
       }
     }
   } catch (error) {
@@ -149,7 +149,7 @@ function previousItem() {
   if (state.index > 0) {
     state.index -= 1;
     render();
-    setMessage("上一张不会保存当前未提交的勾选；点击下一张才会记录决定。", false);
+    setMessage("Previous does not save an unsaved selection. Use Save and next to record a decision.", false);
   }
 }
 
@@ -157,7 +157,7 @@ async function exportCurrent() {
   try {
     const payload = await request("/api/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     const counts = payload.counts;
-    setMessage(`已导出：保留 ${counts.keep}，剔除 ${counts.drop}，未审核 ${counts.undecided}。`, false);
+    setMessage(`Exported: ${counts.keep} kept, ${counts.drop} dropped, ${counts.undecided} not reviewed.`, false);
   } catch (error) {
     setMessage(error.message, true);
   }
@@ -177,10 +177,10 @@ async function init() {
     const first = firstUndecided();
     state.index = first >= 0 ? first : 0;
     render();
-    setMessage("点击下一张时，未勾选会自动记录为剔除。", false);
+    setMessage("Save and next records Drop when the keep option is unchecked.", false);
   } catch (error) {
     setMessage(error.message, true);
-    $("image-loading").textContent = "数据加载失败";
+    $("image-loading").textContent = "Data could not be loaded";
   }
 }
 

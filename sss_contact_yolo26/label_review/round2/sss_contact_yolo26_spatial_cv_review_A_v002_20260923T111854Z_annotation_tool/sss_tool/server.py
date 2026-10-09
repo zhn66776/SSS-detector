@@ -30,8 +30,6 @@ PID_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
 
 FP_NOTE_EN = ("FP = false positive relative to the current annotation set: an OOF prediction that is not "
               "matched to any current A label. It is a review candidate, not a confirmed physical false positive.")
-FP_NOTE_ZH = ("FP 仅表示“相对于当前标注集（A）的未匹配预测候选”：模型预测框没有与当前 A 中任何 GT 框一对一匹配。"
-              "它只是人工复核线索，并不代表已确认的物理 false positive，也可能是漏标的真实 contact。")
 
 
 class App:
@@ -293,7 +291,7 @@ class App:
             "folds": self.index["folds"],
             "pred_statuses": PRED_STATUSES, "pred_status_labels": PRED_STATUS_LABELS,
             "patch_statuses": PATCH_STATUSES,
-            "fp_note_en": FP_NOTE_EN, "fp_note_zh": FP_NOTE_ZH,
+            "fp_note_en": FP_NOTE_EN,
             "startup": c["startup_report"],
             "baseline_comparison_summary": c["baseline_summary"],
             "zip_review_manifest_counts": self.index["zip_review_manifest"][

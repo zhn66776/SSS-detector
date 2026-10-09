@@ -16,16 +16,16 @@ def code(s):
 
 
 md("""
-# YOLO26n 单通道 SSS contact 重新训练（A_v002 人工复核标签）
+# Single-channel YOLO26n retraining with first-round A_v002 labels
 
-- 数据：`sss_contact_yolo26_spatial_split_A_v002.zip`（上传到 Google Drive 的 `MyDrive/` 根目录）
-- 拆分不变：spatial chunks 1–7 训练、8–9 validation、10–11 test；15 m buffer 不参与
-- 标签：chunks 1–9 使用人工复核后的 `A_final_labels_v002`；chunks 10–11（test）仍为原标签，本 notebook 不评估 test
-- 模型配置与原 YOLO26n notebook 相同（imgsz 256、AdamW、lr0 1e-4、80 epochs、同样的增强、正样本 2× 过采样）
+- Upload `sss_contact_yolo26_spatial_split_A_v002.zip` to the root of Google Drive `MyDrive/`.
+- Keep chunks 1–7 for training, 8–9 for validation and 10–11 for testing; exclude the 15 m buffer.
+- Chunks 1–9 use `A_final_labels_v002`. Test labels remain unchanged and this notebook does not evaluate the test split.
+- Retain imgsz 256, AdamW, lr0 1e-4, 80 maximum epochs, the same augmentation and 2× positive-patch oversampling.
 """)
 
 code("""
-# 1. 挂载 Drive，校验并解压数据 ZIP
+# 1. Mount Drive, validate and extract the dataset ZIP
 from google.colab import drive
 from pathlib import Path
 from zipfile import ZipFile
@@ -33,12 +33,12 @@ import shutil
 
 drive.mount('/content/drive')
 ZIP_PATH = Path('/content/drive/MyDrive/sss_contact_yolo26_spatial_split_A_v002.zip')
-assert ZIP_PATH.exists(), f'Drive 中找不到 {ZIP_PATH}'
+assert ZIP_PATH.exists(), f'File not found on Drive: {ZIP_PATH}'
 
 EXTRACT_ROOT = Path('/content/sss_a_v002')
 shutil.rmtree(EXTRACT_ROOT, ignore_errors=True)
 with ZipFile(ZIP_PATH) as zf:
-    assert zf.testzip() is None, 'ZIP 损坏'
+    assert zf.testzip() is None, 'ZIP integrity check failed'
     zf.extractall(EXTRACT_ROOT)
 
 BUNDLE_ROOT = EXTRACT_ROOT / 'sss_contact_yolo26_spatial_split_A_v002'
@@ -47,12 +47,12 @@ print((BUNDLE_ROOT / 'README.md').read_text())
 """)
 
 code("""
-# 2. 安装支持 YOLO26 的 Ultralytics（如之前 import 过 ultralytics，请重启 runtime 后从第 1 个 cell 重跑）
+# 2. Install YOLO26-compatible Ultralytics; restart the runtime first if it was already imported
 %pip -q install -U 'ultralytics>=8.4.159,<8.5' 'pandas==2.2.3' matplotlib pyyaml
 """)
 
 code("""
-# 3. 数据检查：各 split 数量 / 正样本 / 单通道 150×150
+# 3. Inspect split counts, positive patches and single-channel 150x150 inputs
 import pandas as pd
 import torch
 from PIL import Image
@@ -73,7 +73,7 @@ print('CUDA:', torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch
 """)
 
 code("""
-# 4. 训练配置（与原 YOLO26n notebook 一致）
+# 4. Training settings retained from the original YOLO26n notebook
 import json
 
 DATA_YAML = BUNDLE_ROOT / 'dataset.yaml'
@@ -100,7 +100,7 @@ print(json.dumps({k: TRAIN_ARGS[k] for k in ['epochs', 'imgsz', 'batch', 'optimi
 """)
 
 code("""
-# 5. 训练集正样本 2× 过采样（validation 不变）
+# 5. Oversample positive training patches 2x; leave validation unchanged
 import random
 
 train_images = sorted((BUNDLE_ROOT / 'data' / 'images' / 'train').glob('*.png'))
@@ -125,7 +125,7 @@ print(f'positives {len(positives)}, negatives {len(negatives)}, training entries
 """)
 
 code("""
-# 6. 加载 YOLO26n 预训练权重并训练
+# 6. Load pretrained YOLO26n weights and train
 from ultralytics import YOLO
 
 model = YOLO(MODEL_WEIGHTS, task='detect')
@@ -137,7 +137,7 @@ print('Best weights:', BEST_WEIGHTS)
 """)
 
 code("""
-# 7. Loss 曲线（train vs val）与 validation 指标随 epoch 变化
+# 7. Plot training/validation losses and validation metrics by epoch
 import matplotlib.pyplot as plt
 
 hist = pd.read_csv(RUN_DIR / 'results.csv')
@@ -161,7 +161,7 @@ display(hist.tail(3))
 """)
 
 code("""
-# 8. best.pt 在 validation（spatial chunks 8–9）上的最终评估
+# 8. Evaluate best.pt on validation spatial chunks 8-9
 from IPython.display import Image as DisplayImage
 
 best_model = YOLO(str(BEST_WEIGHTS), task='detect')
@@ -178,7 +178,7 @@ for pattern in ['*PR_curve.png', '*F1_curve.png', 'confusion_matrix.png']:
 """)
 
 code("""
-# 9. 把训练和 validation 结果保存到 Drive（Colab 本地文件断开后会丢失）
+# 9. Save training and validation results to Drive before the Colab runtime is lost
 SAVE_ROOT = Path('/content/drive/MyDrive/sss_contact_yolo26_results_A_v002')
 SAVE_ROOT.mkdir(parents=True, exist_ok=True)
 for src in [RUN_DIR, VAL_DIR]:

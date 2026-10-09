@@ -5,20 +5,20 @@
   var W = 150, H = 150;
   var SVGNS = "http://www.w3.org/2000/svg";
   var VIEWS = [
-    ["all", "All patches / 全部"],
-    ["fp", "FP candidates / 未匹配预测"],
-    ["fn", "FN / 未匹配 GT"],
-    ["tp", "TP / 匹配"],
+    ["all", "All patches"],
+    ["fp", "FP candidates / unmatched predictions"],
+    ["fn", "FN / unmatched annotations"],
+    ["tp", "TP / matched"],
     ["tn", "TN"],
-    ["unscored", "Unscored / 未评估"]
+    ["unscored", "Unscored"]
   ];
   var VIEW_NOTES = {
     all: "All 9,000 patches from spatial chunks 1–9. Classification uses saved OOF predictions and the current A labels.",
-    fp: "", // filled from meta (English + Chinese definition)
-    fn: "FN = a current A GT box without a one-to-one match among predictions at the current thresholds. It can be a missed detection or an incorrectly drawn label; deleting it is always a manual action. / FN：当前 A 中未被匹配的 GT 框；是否删除只能由人工决定。",
+    fp: "", // filled from meta (English definition)
+    fn: "FN = a current A GT box without a one-to-one match among predictions at the current thresholds. It can be a missed detection or an incorrectly drawn label; deleting it is always a manual action.",
     tp: "TP = matched GT/prediction pair (IoU ≥ threshold, one-to-one). Default order: lowest TP IoU first.",
     tn: "TN = OOF-scored patch with 0 GT boxes in A and 0 predictions at the current confidence threshold. Use 'New random sample' for spot checks.",
-    unscored: "Unscored / 未评估：these 224 patches were not held out by any fold after the fold-specific 15 m spatial guards, so no OOF prediction exists. They are never counted as TN. GT boxes can still be reviewed and edited."
+    unscored: "Unscored: these 224 patches were not held out by any fold after the fold-specific 15 m spatial guards, so no OOF prediction exists. They are never counted as TN. GT boxes can still be reviewed and edited."
   };
 
   var S = {
@@ -105,7 +105,7 @@
     badge.textContent = bc.all_equal ? "baseline 0.20/0.50 = ZIP manifest ✓" : "baseline differs from ZIP ⚠";
     badge.className = "role role-check " + (bc.all_equal ? "ok" : "bad");
     badge.title = "Platform recomputation with B labels vs ZIP review_manifest.json and classification CSVs. Click 'Data checks…' for details.";
-    VIEW_NOTES.fp = "<b>" + esc(m.fp_note_en) + "</b><br>" + esc(m.fp_note_zh) +
+    VIEW_NOTES.fp = "<b>" + esc(m.fp_note_en) + "</b>" +
       "<br>Types (by current A): <code>unlabelled_model_candidate</code> = patch has 0 GT in A; <code>extra_prediction_on_labelled_patch</code> = patch has GT in A but this prediction matched none.";
     $("floor-hint").textContent = "Saved OOF predictions start at " + m.prediction_confidence_floor.toFixed(2) + "; thresholds below that are not available.";
   }
@@ -277,7 +277,7 @@
       th.appendChild(svg);
       card.appendChild(th);
       var badges = [];
-      if (!it.scored) badges.push('<span class="b uns">unscored / 未评估</span>');
+      if (!it.scored) badges.push('<span class="b uns">unscored</span>');
       if (it.tn) badges.push('<span class="b tn">TN</span>');
       if (it.tp) badges.push('<span class="b tp">TP ' + it.tp + (it.min_tp_iou !== null ? " · IoU " + f2(it.min_tp_iou) : "") + "</span>");
       if (it.fp) badges.push('<span class="b fp">FP cand ' + it.fp + " · " + f2(it.max_fp_conf) + "</span>");
@@ -339,7 +339,7 @@
     $("detail-empty").hidden = true; $("detail").hidden = false;
     $("d-title").textContent = d.patch_id;
     var c = d.counts, bs = [];
-    if (!d.meta.scored) bs.push('<span class="b uns">unscored / 未评估 — no OOF prediction</span>');
+    if (!d.meta.scored) bs.push('<span class="b uns">unscored — no OOF prediction</span>');
     else {
       bs.push('<span class="b">GT ' + c.gt_count + "</span>", '<span class="b">pred ' + c.pred_count + "</span>");
       if (c.tp) bs.push('<span class="b tp">TP ' + c.tp + "</span>");
@@ -747,7 +747,7 @@
     if (!d.gt.length) gt.push('<tr><td colspan="5" class="muted">No GT boxes in A (empty label file).</td></tr>');
     $("t-gt").innerHTML = gt.join("");
 
-    $("fp-note-detail").innerHTML = esc(m.fp_note_en) + "<br>" + esc(m.fp_note_zh);
+    $("fp-note-detail").innerHTML = esc(m.fp_note_en);
     var pr = ["<tr><th>k</th><th>conf</th><th>status @ thresholds</th><th>IoU</th><th>YOLO / pixels</th><th>folds (support)</th><th>review status (saved separately)</th><th>note</th></tr>"];
     d.predictions.forEach(function (p) {
       var sel = S.sel && S.sel.type === "pred" && S.sel.k === p.k;
@@ -783,7 +783,7 @@
       ["patch ID", d.patch_id], ["spatial_chunk", m.spatial_chunk], ["original_group", m.original_group],
       ["final_split (metadata, not CV fold)", m.final_split],
       ["bounds (m)", m.bounds_m ? "x " + m.bounds_m.x0 + " – " + m.bounds_m.x1 + ", y " + m.bounds_m.y0 + " – " + m.bounds_m.y1 : "–"],
-      ["OOF scored", m.scored ? "yes" : "NO — unscored / 未评估: " + (m.unscored_reason || "")],
+      ["OOF scored", m.scored ? "yes" : "NO — unscored: " + (m.unscored_reason || "")],
       ["GT / pred (≥conf) / TP / FP / FN", d.counts.gt_count + " / " + d.counts.pred_count + " / " + d.counts.tp + " / " + d.counts.fp + " / " + d.counts.fn],
       ["image (ZIP member)", p.zip_image_member], ["source ZIP", p.source_zip],
       ["original GT (ZIP member)", p.zip_gt_member], ["original GT (backup B)", p.b_label_path],

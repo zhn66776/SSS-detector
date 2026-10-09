@@ -1,11 +1,11 @@
-# ===== Cell A: 按标签来源统计 val 的检出率（需要先运行训练 notebook 的 cell 1-8） =====
+# ===== Cell A: validation recall by label source (run training notebook cells 1-8 first) =====
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
-SOURCES_CSV = Path('/content/drive/MyDrive/label_sources_A_v002.csv')   # 先把 CSV 上传到 MyDrive
+SOURCES_CSV = Path('/content/drive/MyDrive/label_sources_A_v002.csv')   # Upload the CSV to MyDrive first
 SPLIT = 'val'
-CONF_T, IOU_T = 0.29, 0.50        # F1 最优置信度 / 匹配 IoU
+CONF_T, IOU_T = 0.29, 0.50        # Confidence at the best validation F1 / matching IoU
 
 gt = pd.read_csv(SOURCES_CSV).query('split == @SPLIT').copy()
 gt['group'] = np.where(gt.source != 'adopted_prediction', gt.source,
@@ -40,18 +40,18 @@ gt['detected'] = gt.model_conf >= CONF_T
 summary = gt.groupby('group').agg(boxes=('detected', 'size'), detected=('detected', 'sum'))
 summary['recall'] = (summary.detected / summary.boxes).round(3)
 display(summary)
-print(f'总 recall @conf {CONF_T}: {gt.detected.mean():.3f}（每个 GT 独立判断，非一对一，仅用于诊断）')
+print(f'Overall recall @conf {CONF_T}: {gt.detected.mean():.3f} (each GT is assessed independently; not one-to-one matching; diagnostic only)')
 
 
-# ===== Cell B: 逐个查看采纳置信度 < 0.3 的框（先看漏检的） =====
+# ===== Cell B: inspect labels adopted below confidence 0.3, starting with missed detections =====
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from PIL import Image
 
 look = gt[gt.group == 'adopted_conf<0.3'].sort_values(['detected', 'adopted_conf']).reset_index(drop=True)
 look.drop(columns='xyxy').to_csv('/content/drive/MyDrive/low_conf_adopted_review_%s.csv' % SPLIT, index=False)
-print(f'{len(look)} 个框；漏检 {(~look.detected).sum()} 个。黄 = 当前这个 GT，橙细线 = 同 patch 其它 GT，'
-      f'青 = 新模型预测 (≥{CONF_T})，灰虚线 = 新模型低置信度预测 (0.05–{CONF_T})')
+print(f'{len(look)} boxes; missed: {(~look.detected).sum()} boxes. Yellow = selected GT; thin orange = other GT in this patch; '
+      f'cyan = new model predictions (>={CONF_T}); gray dashed = low-confidence predictions (0.05-{CONF_T})')
 
 def rect(ax, b, color, lw, ls='-'):
     ax.add_patch(Rectangle((b[0] * 150, b[1] * 150), (b[2] - b[0]) * 150, (b[3] - b[1]) * 150,

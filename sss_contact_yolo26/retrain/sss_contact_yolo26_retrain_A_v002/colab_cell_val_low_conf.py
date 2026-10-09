@@ -1,4 +1,4 @@
-# val 上新模型置信度 < 0.3 的预测：黄 = GT，红虚线 = 低置信度预测 (0.05–0.3)，青 = 预测 ≥ 0.3
+# Validation: yellow = GT; red dashed = low-confidence predictions (0.05-0.3); cyan = predictions >= 0.3
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -29,14 +29,14 @@ for r in best_model.predict([str(p) for p in sorted(img_dir.glob('*.png'))], img
 
 rows.sort(key=lambda d: -d['max_low'])
 n_low = sum(d['n_low'] for d in rows); n_on_gt = sum(d['low_on_gt'] for d in rows)
-print(f'{len(rows)} 个 val patch 含低置信度预测；共 {n_low} 个框，其中 {n_on_gt} 个与 GT 重叠 (IoU≥{IOU_T}) → '
-      f'阈值降到 {LOW} 可多找回的 GT；其余 {n_low - n_on_gt} 个与任何 GT 都不重叠')
+print(f'{len(rows)} validation patches contain low-confidence predictions; {n_low} boxes, including {n_on_gt} overlapping GT (IoU>={IOU_T}) → '
+      f'Lowering the threshold to {LOW} may recover these GT boxes; the remaining {n_low - n_on_gt} overlap no GT boxes')
 
 def rect(ax, b, color, lw, ls='-'):
     ax.add_patch(Rectangle((b[0] * 150, b[1] * 150), (b[2] - b[0]) * 150, (b[3] - b[1]) * 150,
                            fill=False, color=color, lw=lw, ls=ls))
 
-MAX_SHOW, PER_PAGE = 60, 20                      # 最多显示 60 个 patch（按最高低置信度排序）
+MAX_SHOW, PER_PAGE = 60, 20                      # Show at most 60 patches, ordered by the highest low-confidence prediction
 for start in range(0, min(len(rows), MAX_SHOW), PER_PAGE):
     fig, axes = plt.subplots(4, 5, figsize=(16, 13.5), constrained_layout=True)
     for ax in axes.ravel():
