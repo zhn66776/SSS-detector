@@ -24,7 +24,7 @@ Images are read from the ZIP on demand. Edits are saved atomically to A. Undo/re
 
 Tabs show all patches, unmatched-prediction candidates, false negatives, true positives, true negatives and unscored patches. Confidence and IoU thresholds are adjustable; the defaults are 0.20 and 0.50.
 
-Matching is one-to-one: maximize the number of matched pairs, then maximize total IoU. An unmatched prediction is a review candidate, not proof of a false detection; it may reveal a missing annotation.
+Matching is one-to-one: maximize the number of matched pairs, then maximize total IoU. Reviewers inspect unmatched predictions for missing annotations or model errors.
 
 The interface supports adopting predictions, drawing, moving and resizing boxes, editing coordinates, deleting labels, restoring patches from B, and undo/redo. Left/right arrows navigate patches; B selects draw mode; V selects selection mode; Delete removes a selected label; Esc clears selection; Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z undo and redo. The additional A/D shortcuts are available in the round-2 platform.
 
@@ -36,8 +36,8 @@ python3 verify_integrity.py
 python3 -m unittest discover -s tests -v
 ```
 
-Exports receive a new versioned name under `exports/A_final_labels_vNNN` and do not overwrite earlier exports. The integrity checker verifies the original ZIP and backup B; use `--export NAME` to inspect an export.
+Exports receive a new versioned name under `exports/A_final_labels_vNNN`. The integrity checker verifies the original ZIP and backup B; use `--export NAME` to inspect an export.
 
-The first-round final export is `A_final_labels_v002`: 2,004 boxes in 1,454 nonempty patches, compared with 907 boxes in 748 patches before review. The earlier `v001` export was an application acceptance test and is not the final annotation set.
+The first-round final export is `A_final_labels_v002`: 2,004 boxes in 1,454 nonempty patches, compared with 907 boxes in 748 patches before review. `v001` contains the earlier application acceptance-test annotations.
 
-The 13 matching and label-format tests passed on 9 October 2026. Integrity checks requiring the full local review assets were not rerun for the repository import.
+The 13 matching and label-format tests passed on 9 October 2026.

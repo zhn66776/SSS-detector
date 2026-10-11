@@ -1,10 +1,10 @@
 # Running the local tools
 
-Commands below start from the repository root unless a `cd` command says otherwise. They describe the existing workflows; installation in a clean environment was not exercised during the initial repository import.
+Run the commands from the repository root and follow each section’s `cd` command.
 
-## Restore assets first
+## Local assets
 
-A source-only clone does not contain the survey data, annotation state or checkpoint.
+Place the data and checkpoints in these directories before starting each application:
 
 | Component | Required local assets |
 |---|---|
@@ -14,13 +14,13 @@ A source-only clone does not contain the survey data, annotation state or checkp
 | MBES viewer | Prepared `sss_mbes_sediment_viewer/derived/`; SSS layers depend on the contact inspector's ECW service |
 | SAS viewer | The separate SAS GeoTIFF configured in `sas_native_viewer/render.py` |
 
-The ECW SDK source and compiled libraries remain in the existing local workspace. They are excluded from this repository. `native/rebuild_ecw_stack.sh` expects that source at `sss_contact_inspector/vendor-src/libecw`; the script does not download it.
+To build the Costa decoder, place the ECW SDK source at `sss_contact_inspector/vendor-src/libecw` and run `sss_contact_inspector/native/rebuild_ecw_stack.sh`. The SDK source and compiled libraries are local dependencies.
 
-Several earlier preparation and exploration scripts still use machine-specific paths. Read their path constants before running them on a new machine. Keep original archives and annotation backups read-only.
+Set the path constants in the preparation and exploration scripts to match your data locations. Keep original archives and annotation backups read-only.
 
 ## Inference map
 
-The existing application has its own `.venv`, with Ultralytics 8.4.160. Its saved environment also used PyTorch 2.8, NumPy 1.26.4 and OpenCV 4.11.0.86. The inspector's requirements target a different NumPy range, so keep these environments separate.
+The recorded inference environment uses Ultralytics 8.4.160, PyTorch 2.8, NumPy 1.26.4 and OpenCV 4.11.0.86. Keep a separate environment for the inspector, whose requirements use NumPy 2.x.
 
 ```sh
 cd sss_contact_yolo26/apps/sss_contact_yolo26_test_inference_map
@@ -29,14 +29,14 @@ cd sss_contact_yolo26/apps/sss_contact_yolo26_test_inference_map
 
 Open `http://127.0.0.1:8770/`. The default weights and data paths are relative to the project. Use `--weights`, `--bundle` and `--outputs` to override them. Check `serve_map.py --help` for the supported options.
 
-Existing environment directories should be recreated when moving to another machine. The historical application setup used:
+To reuse an existing Python installation containing PyTorch, NumPy, OpenCV, Pillow and tifffile, create the application environment with:
 
 ```sh
 python3 -m venv --system-site-packages .venv
 .venv/bin/python -m pip install 'ultralytics==8.4.160'
 ```
 
-This command assumes suitable system packages already exist; it is not a fully specified clean-machine installation. A packaged dependency definition remains future work.
+`--system-site-packages` reuses packages from that Python installation. Create a new virtual environment when moving the application to another machine.
 
 ## Review platforms
 
@@ -50,13 +50,11 @@ cd sss_contact_yolo26/label_review/round2/sss_contact_yolo26_spatial_cv_review_A
 python3 serve.py --host 127.0.0.1 --port 8768
 ```
 
-Both applications provide `--zip` and `--backup-b` overrides. Their source ZIP and backup labels must be available before startup. Matching and label-format unit tests run without those survey assets:
+Set the review ZIP and backup labels with `--zip` and `--backup-b`. Run the matching and label-format tests from each review platform directory:
 
 ```sh
 python3 -m unittest discover -s tests -v
 ```
-
-Run this command from each review platform directory.
 
 ## Inspection tools
 
@@ -74,15 +72,15 @@ The MBES viewer starts the SSS service on port 8090 if needed. Its build script 
 
 ## Training notebooks
 
-Use the English templates under [`../notebooks/`](../notebooks/README.md) in Colab with the corresponding data ZIP restored to Google Drive. Templates have no saved outputs or execution state. Existing local notebooks with historical outputs remain outside Git.
+Open the [notebook templates](../notebooks/README.md) in Colab and place the corresponding data ZIP on Google Drive.
 
-The training template runs validation. Reserve test metrics for a reviewed evaluation set and a fixed evaluation procedure. The spatial-CV template audits chunks 1–9; it does not train on the held-out test chunks.
+The training template evaluates validation chunks 8–9. Spatial CV audits chunks 1–9, using the geometry of test chunks 10–11 to calculate buffer distances. Use validation results to choose model settings, then evaluate the reviewed test set.
 
-## Test results at import
+## Test results
 
 On 9 October 2026, the existing suites returned 50 passes and 2 failures across 52 tests. The failures are confined to the contact inspector:
 
 - `test_metadata_and_contact_counts`: the test expects 20,983 records; the current contact file has 20,985 after the GIS migration added S3824 and S3825. Preparation metadata also predates those additions.
 - `test_original_archives_match_preparation_signature`: original ZIPs were not found at the recorded external-drive paths.
 
-The MBES viewer's 16 tests and both review platforms' 13 tests each passed. No test expectations or application behavior were changed to make this initial snapshot appear fully passing.
+The MBES viewer’s 16 tests and both review platforms’ 13 tests each passed.

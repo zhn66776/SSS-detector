@@ -1,10 +1,10 @@
 # SSS-detector
 
-A local research toolkit for detecting and reviewing seabed contacts in side-scan sonar (SSS) imagery.
+A research toolkit for detecting and reviewing seabed contacts in side-scan sonar imagery. It combines native-resolution survey inspection, spatial dataset preparation, human label review, YOLO26 training and georeferenced map inference.
 
-The project connects native-resolution survey inspection, spatial dataset preparation, human review of model-suggested label errors, single-channel YOLO26 training, and georeferenced map inference. The current training data comes from **Costa Head CES-86**. Moray Firth and other surveys are used in separate inspection or exploratory workflows.
-
-**Status, 9 October 2026:** the local workflow is implemented, a trained checkpoint is available locally, and saved inference results cover up to a 2 km × 2 km region. Independent test-label review and a controlled comparison of model versions remain open. This repository records the implementation and evidence; a fresh clone requires the separately stored data and weights to run the full workflow.
+- Inspect Costa Head and Moray Firth sonar imagery alongside survey contacts, bathymetry and sediment maps.
+- Review spatial cross-validation predictions, edit annotations and export versioned labels.
+- Run single-channel YOLO26 inference on sonar images or patch folders, inspect detections on a map and export contact coordinates.
 
 ## Workflow
 
@@ -22,91 +22,74 @@ flowchart LR
     K[MBES and sediment polygons] --> B
 ```
 
-The model predicts one class, `contact`: a visible sonar target. The labels do not establish an object's physical identity or whether it is unexploded ordnance.
+The detector uses one class, `contact`, for visible sonar targets such as boulders and debris.
 
 ## Components
 
 | Directory | Role |
 |---|---|
-| [`sss_contact_inspector/`](sss_contact_inspector/README.md) | Costa Head and Moray Firth contact maps, native image crops, dataset export and data-quality inspection. |
-| [`sss_mbes_sediment_viewer/`](sss_mbes_sediment_viewer/README.md) | Co-registered SSS, MBES elevation, geometric roughness and official sediment polygons. |
-| [`sss_contact_yolo26/`](sss_contact_yolo26/README.md) | Two review rounds, retraining scripts, the inference application and regional experiments. |
-| [`notebooks/`](notebooks/README.md) | English, output-free copies of the current training and spatial-CV notebooks. |
-| `sss_contact_yolov8_spatial_split_bundle/` | Dataset configuration and helper code for the spatial split; images and labels remain local. |
-| `sss_contact_yolov8_colab_bundle/`, `sss_contact_l4_colab_bundle/` | Earlier YOLOv8 training and zero-shot comparison helpers. These are historical experiments. |
-| `sas_native_viewer/` | An exploratory viewer for a separate 3 cm Galapagos SAS raster. |
-| `tools/` | Earlier raster preparation and visualization utilities. |
+| [`sss_contact_inspector/`](sss_contact_inspector/README.md) | Contact maps, native image crops, dataset export and data-quality inspection. |
+| [`sss_mbes_sediment_viewer/`](sss_mbes_sediment_viewer/README.md) | Co-registered SSS, MBES elevation, geometric roughness and sediment polygons. |
+| [`sss_contact_yolo26/`](sss_contact_yolo26/README.md) | Two review rounds, retraining scripts, regional experiments and the inference application. |
+| [`notebooks/`](notebooks/README.md) | Colab training and spatial-CV templates. |
+| `sss_contact_yolov8_spatial_split_bundle/` | Spatial-split configuration and dataset helpers. |
+| `sss_contact_yolov8_colab_bundle/`, `sss_contact_l4_colab_bundle/` | Earlier YOLOv8 training and zero-shot comparison workflows. |
+| `sas_native_viewer/` | Native-pixel viewer for a 3 cm Galapagos SAS raster. |
+| `tools/` | Raster preparation and visualization utilities. |
 
-Existing directory names are retained so local data and scripts keep their current relative locations. The repository name is `SSS-detector`; an existing checkout may still be named `IRP-external`.
+## Dataset and results
 
-## Current dataset and results
+The YOLO26 detector was trained on **Costa Head CES-86** imagery:
 
-- **10,756 patches**, each 150 × 150 pixels, grayscale, at 0.1 m/pixel.
-- **100-pixel stride**, producing 50-pixel overlap between adjacent patches.
-- Spatial split: **6,847 train / 1,696 validation / 1,605 test / 608 buffer** patches. Cross-split buffers provide a 15 m separation. Annotation group numbers are not geographic order.
-- Two review rounds covered **9,000 patches in spatial chunks 1–9**. Annotation boxes increased from **907 → 2,004 → 2,992**. Overlapping patches may contain the same physical target.
+- **10,756 grayscale patches**, each 150 × 150 pixels at 0.1 m/pixel.
+- **100-pixel stride**, with 50-pixel overlap between adjacent patches.
+- **6,847 training / 1,696 validation / 1,605 test / 608 buffer** patches, split geographically with a 15 m cross-split buffer.
+- Two review rounds covered **9,000 patches** in spatial chunks 1–9 and expanded the annotations from **907 → 2,004 → 2,992 boxes**.
 
-Metrics stored in the current `yolo26n_A_round2_v001/best.pt` checkpoint:
+YOLO26n validation on spatial chunks 8–9, using the round-2 annotations:
 
-| Validation metric | Value |
+| Metric | Value |
 |---|---:|
 | Precision | 0.63557 |
 | Recall | 0.68011 |
 | mAP50 | 0.66530 |
 | mAP50–95 | 0.38652 |
 
-The checkpoint was trained on 23 September 2026 with Ultralytics 8.4.160, one input channel and `imgsz=256`. These are validation metrics against the round-2 labels, not an independently audited test result. The earlier 0.597 mAP50 result used different validation labels, so it does not establish the size of a model improvement.
+The checkpoint was trained on 23 September 2026 with Ultralytics 8.4.160, one grayscale input channel and `imgsz=256`.
 
-Saved runs inspected on 9 October 2026:
+Recorded CPU inference runs from 23 September 2026:
 
-| Input | Patches inferred | Elapsed run time | Merged predictions at confidence 0.5 |
+| Input | Patches | Run time | Merged predictions at confidence 0.5 |
 |---|---:|---:|---:|
-| Held-out spatial chunks 10–11 | 1,605 | 19 s | 236 |
-| Separate 0.5 m survey image resampled to 0.1 m | 10,000 | 1 min 49 s | 211 |
-| 2 km × 2 km Costa Head region outside the bundle | 40,000 | 7 min 40 s | 5,912 |
+| Test chunks 10–11 | 1,605 | 19 s | 236 |
+| Separate survey image: 0.5 m native resolution, resampled to 0.1 m | 10,000 | 1 min 49 s | 211 |
+| 2 km × 2 km Costa Head region outside the dataset bundle | 40,000 | 7 min 40 s | 5,912 |
 
-Counts were checked against both the saved run manifests and contact CSVs. They are predicted contacts, not verified detections. Resampling the 0.5 m image changes its pixel spacing but does not recover 0.1 m sensor detail. See [results and limitations](docs/RESULTS.md) for the evidence and outstanding evaluation work.
+See [experiments and results](docs/RESULTS.md) for data sources, annotation versions and evaluation details.
 
-## Local inference application
+## Run the inference map
 
-The application supports the built-in test region, uploaded GeoTIFF/PNG images, patch folders, and compatible single-channel detection weights. It cuts large images into patches, displays progress, merges overlapping detections, and exports a full-resolution mosaic and a contact CSV. Georeferenced inputs retain map coordinates.
+The application accepts 8-bit grayscale GeoTIFF or PNG images at 0.1 m/pixel, patch folders and single-channel detection weights. It provides live progress, map inspection, adjustable confidence thresholds, merged detections and coordinate exports. Interfaces and runtime messages use English.
 
-Application interfaces, runtime messages, review status labels and notebook generators use English. Previously saved upload metadata is also displayed in English.
-
-With the existing local environment, data and checkpoint available, run from the repository root:
+Prepare the data, checkpoint and Python environment using [the setup guide](docs/RUNNING.md), then run from the repository root:
 
 ```sh
 cd sss_contact_yolo26/apps/sss_contact_yolo26_test_inference_map
 .venv/bin/python serve_map.py
 ```
 
-Open `http://127.0.0.1:8770/`. See [running and restoring local assets](docs/RUNNING.md) and the [application README](sss_contact_yolo26/apps/sss_contact_yolo26_test_inference_map/README.md).
+Open `http://127.0.0.1:8770/`. The [application guide](sss_contact_yolo26/apps/sss_contact_yolo26_test_inference_map/README.md) covers input formats, map controls and output files.
 
-The current image input requires 8-bit grayscale at 0.1 m/pixel. The backend still holds full image arrays during some operations, even though the browser displays map tiles. Larger regions therefore remain limited by server memory.
+## Data and development
 
-## Validation status
+This repository contains source code, tests, documentation, notebook templates and aggregate experiment records. Obtain survey data directly from the Marine Data Exchange and keep data, annotations, checkpoints and generated outputs in the local asset directories listed in [the setup guide](docs/RUNNING.md).
 
-Existing tests were run locally on 9 October 2026:
+[Test results](docs/RUNNING.md#test-results) document the 9 October 2026 checks and the two outstanding inspector issues.
 
-| Suite | Result |
-|---|---:|
-| SSS contact inspector | 8 passed, 2 failed |
-| SSS / MBES / sediment viewer | 16 passed |
-| Round-1 review platform | 13 passed |
-| Round-2 review platform | 13 passed |
+Next steps:
 
-The inspector failures are recorded: the current contact file contains **20,985** records after two GIS contacts were added, while its test and preparation metadata still expect **20,983**; original survey ZIPs are unavailable at their recorded external-drive paths. This initial repository import does not repair either issue. These 52 tests cover the existing inspection and review suites, not a complete browser or inference application test suite.
-
-## Repository contents
-
-Tracked files contain application code, preprocessing helpers, tests, English documentation, output-free notebook copies and a small aggregate evidence record. Raw survey archives, rasters, patches, annotations, weights, generated results, third-party ECW source/build trees and local environments stay outside Git. Agent instructions, configurations, handoffs and logs are also ignored.
-
-Source data and the trained checkpoint must be obtained or restored separately. A data and model distribution package and a public release license have not been selected. No training jobs, downloads, scheduled tasks or CI workflows are enabled by this repository import.
-
-## Next work
-
-1. Define a stable contact annotation guide, including ambiguous targets.
-2. Review an independent test sample and report precision/recall with uncertainty.
-3. Evaluate the earlier and current models against the same reviewed validation labels.
-4. Reconcile inspector contact metadata and restore configurable source paths.
-5. Package the applications with documented dependencies and reproducible setup.
+1. Write a contact annotation guide, including ambiguous targets.
+2. Review an independent test sample and report precision and recall with confidence intervals.
+3. Compare model versions on a shared set of validation annotations.
+4. Update inspector contact metadata and make source paths configurable.
+5. Package the applications and their dependencies.

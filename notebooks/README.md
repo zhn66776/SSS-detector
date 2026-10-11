@@ -1,6 +1,6 @@
 # Notebook templates
 
-These are English, output-free copies of the current local Colab workflows. Original notebooks, execution outputs and embedded figures remain outside Git.
+Colab templates for YOLO26 training and spatial cross-validation.
 
 | Notebook | Source workflow |
 |---|---|
@@ -9,4 +9,4 @@ These are English, output-free copies of the current local Colab workflows. Orig
 
 The names refer to different stages: the CV notebook generates the second review round; the training notebook consumes that round's final labels. Both require their corresponding data ZIP on Google Drive. Inspect the path settings in the first setup cells before running.
 
-Code-cell outputs, execution counts, Colab cell IDs and widget metadata have been removed. Documentation and comments have been translated to English. No training or evaluation was executed while preparing these copies.
+The templates use English documentation and start with empty outputs.

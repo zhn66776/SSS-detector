@@ -20,11 +20,11 @@ md(r"""
 
 - Input: `MyDrive/sss_contact_yolo26_spatial_split_A_v002.zip`, using the first-round reviewed labels for chunks 1–9.
 - Eight adjacent two-chunk validation windows (1–2 through 8–9); train each fold on the other seven chunks, recomputing a 15 m spatial buffer.
-- Test chunks 10–11 contribute geometry only for buffering. Their images and labels are not read.
+- Test chunks 10–11 supply the geometry used to calculate buffer distances.
 - Settings match the first review round: single-channel YOLO26n, imgsz 256, AdamW lr0 1e-4, 80 maximum epochs, patience 20, 2× positive-patch oversampling and the same augmentation.
 - Save each fold's out-of-fold predictions and best checkpoint to Drive immediately. Completed folds can be resumed without retraining.
 - Download the final review ZIP and retain a Drive copy. Its layout is compatible with the local review platform.
-- An unmatched prediction is a possible missing label or model error. This is label auditing, not independent performance evaluation.
+- Review unmatched predictions for missing annotations or model errors.
 """)
 
 code(r"""
@@ -341,7 +341,7 @@ pd.DataFrame(tn_rows, columns=cols(['review_status', 'gt_count', 'prediction_cou
     generation_time_utc=datetime.now(timezone.utc).isoformat(timespec='seconds'), source_directory='downloaded CV review bundle',
     interpretation='OOF-union discovery output for manual label review; not an unbiased CV performance estimate.'), indent=2))
 (PKG / 'html_review' / 'README.md').write_text('Round-2 YOLO26n spatial CV review bundle (labels = A_final_labels_v002).\n'
-                                               'FP = unmatched relative to the current annotation set, not confirmed false positives.\n')
+                                               'FP candidates are predictions unmatched to the current annotations and selected for human review.\n')
 
 zip_path = LOCAL_RUNS / f'sss_contact_yolo26_spatial_cv_review_A_v002_{RUN_ID}.zip'
 with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=4) as zf:

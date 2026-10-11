@@ -5,9 +5,9 @@ A local browser interface for reviewing the patches in `training_region_150px_al
 - The default view shows the raw grayscale patch; a marked preview is also available.
 - Selecting the keep option and advancing records `keep`; advancing without it records `drop`.
 - Decisions are saved to local JSON and CSV files, together with selected/rejected contact lists and a review summary.
-- Unreviewed patches are excluded from both the selected and rejected lists.
+- Exported selected and rejected lists contain reviewed patches.
 
-From the repository root, with the candidate dataset restored:
+Place the candidate dataset in `training_region_150px_all_point_candidates`, then run from the repository root:
 
 ```sh
 cd sss_contact_inspector/training_region_150px_all_point_candidates

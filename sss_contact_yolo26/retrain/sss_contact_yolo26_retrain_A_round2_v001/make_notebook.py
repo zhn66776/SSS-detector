@@ -20,9 +20,8 @@ md(r"""
 
 - Upload `sss_contact_yolo26_spatial_split_A_round2_v001.zip` to the root of Google Drive `MyDrive/`.
 - Keep spatial chunks 1–7 for training, 8–9 for validation and 10–11 for testing; exclude the 15 m buffer.
-- Chunks 1–9 use `A_round2_labels_v001`. Test labels remain unchanged and this notebook does not evaluate the test split.
+- Training and validation use `A_round2_labels_v001` for chunks 1–9. Test chunks retain the original labels.
 - Training settings retain imgsz 256, AdamW, lr0 1e-4, 80 maximum epochs, the same augmentation and 2× positive-patch oversampling.
-- Compare model versions on the same validation labels before attributing a metric difference to the model.
 """)
 
 code(r"""
@@ -178,7 +177,7 @@ for pattern in ['*PR_curve.png', '*F1_curve.png']:
 
 CM_CONF = 0.25   # Set from the validation F1 curve when choosing an operating threshold
 cm_metrics = best_model.val(conf=CM_CONF, name=f'val_confusion_conf{CM_CONF}', **val_args)
-print(f'confusion matrix @ conf {CM_CONF} (do not report AP from this thresholded run)')
+print(f'confusion matrix @ conf {CM_CONF} (AP and curves are recorded in the conf=0.001 validation run)')
 display(DisplayImage(filename=str(Path(cm_metrics.save_dir) / 'confusion_matrix.png'), width=550))
 """)
 

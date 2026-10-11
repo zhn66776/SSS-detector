@@ -5,8 +5,7 @@ Definitions (at confidence threshold c and IoU threshold t):
   predictions considered = merged OOF boxes with confidence >= c
   TP  = matched GT/prediction pair (one-to-one, see matching.py)
   FN  = unmatched current-A GT box
-  FP candidate = unmatched prediction; "false positive relative to the current
-        annotation set", NOT a confirmed physical false positive
+  FP candidate = prediction unmatched to the current A annotations, selected for human review
   TN  = scored patch with 0 GT and 0 predictions
   unscored patches (no OOF evaluation) never enter TP/FP/FN/TN.
 """

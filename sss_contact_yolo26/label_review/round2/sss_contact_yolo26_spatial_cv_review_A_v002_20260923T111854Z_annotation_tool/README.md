@@ -1,7 +1,6 @@
 # SSS contact review platform — round 2
 
-Second review round of spatial chunks 1–9. It uses the same platform code as round 1. Only the
-data sources, the default port (8768) and the export name differ.
+Second review round of spatial chunks 1–9. It uses the same platform code as round 1. It uses the round-2 data sources, port 8768 and round-2 export names.
 
 ## Start / stop
 
@@ -25,7 +24,7 @@ same time without affecting each other.
 
 ## Round-2 baseline (conf 0.20 / IoU 0.50, labels = A_v002)
 
-The platform recomputes the same numbers as the ZIP, with no differences:
+The platform reproduces the ZIP’s recorded counts:
 
 | | patches | boxes |
 |---|---|---|
@@ -46,14 +45,12 @@ FP candidates by confidence:
 | 0.5–0.7 | 385 |
 | ≥ 0.7 | 54 |
 
-845 candidates are supported by both folds that held the patch out. The ZIP's `fold_metrics.csv`
-has no per-fold mAP columns, because the newer Ultralytics trainer returned no metrics dict. This
-does not affect the review.
+845 candidates were detected by both folds that held the patch out. The review uses saved OOF predictions. Per-fold mAP values are unavailable in `fold_metrics.csv` because the trainer returned an empty metrics dictionary.
 
 ## Export
 
 Use the **Export A…** button, or run `python3 export_labels.py --note "..."`. Each export creates a
-new version, `exports/A_round2_labels_vNNN`, and never overwrites an existing one.
+new version under `exports/A_round2_labels_vNNN`.
 
 Keyboard shortcuts (ignored while a text/number field has focus): **A** adopt the selected prediction as a label, **D** or Delete delete the selected GT box, ← / → previous/next patch, B draw mode, V select mode, Esc deselect, Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z redo.
 

@@ -110,8 +110,7 @@ def startup(zip_path, b_dir):
                      "matching": "one-to-one; maximise #pairs with IoU >= threshold, then total IoU (Hungarian)",
                      "classes": {"0": "contact"}, "image": "150x150 8-bit grayscale PNG from the ZIP"},
         "baseline_comparison_summary": baseline_summary,
-        "fp_definition": "false positive relative to the current annotation set (unmatched OOF prediction); "
-                         "not a confirmed physical false positive",
+        "fp_definition": "OOF prediction unmatched to the current annotation set, selected for human review",
     }
     atomic_write_json(REVIEW_MANIFEST, manifest)
     if not zip_same or not bm_same:

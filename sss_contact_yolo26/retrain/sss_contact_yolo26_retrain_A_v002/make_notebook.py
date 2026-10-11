@@ -20,7 +20,7 @@ md("""
 
 - Upload `sss_contact_yolo26_spatial_split_A_v002.zip` to the root of Google Drive `MyDrive/`.
 - Keep chunks 1–7 for training, 8–9 for validation and 10–11 for testing; exclude the 15 m buffer.
-- Chunks 1–9 use `A_final_labels_v002`. Test labels remain unchanged and this notebook does not evaluate the test split.
+- Training and validation use `A_final_labels_v002` for chunks 1–9. Test chunks retain the original labels.
 - Retain imgsz 256, AdamW, lr0 1e-4, 80 maximum epochs, the same augmentation and 2× positive-patch oversampling.
 """)
 

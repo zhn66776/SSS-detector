@@ -191,10 +191,10 @@ def main() -> None:
     (BUILD_ROOT / "metadata" / "bundle_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     (BUILD_ROOT / "README.md").write_text(
         "# Costa Head SSS contact Colab bundle\n\n"
-        "This derived bundle includes group_01..group_04 native 150x150 grayscale PNGs, converted one-class YOLO labels, the original AnyLabeling JSON where present, a Colab L4 notebook, and the ONNX inference/evaluation helper.\n\n"
-        "The original project images and labels were not modified. The notebook defaults to group_02 and group_03 because they contain the most contact boxes.\n\n"
-        "The selected checkpoint is SonarVision YOLOv8-ESI v6. Only its `unknown_debris` class is retained and emitted as `contact`; other model classes are discarded. This is a zero-shot SSS baseline, not a fine-tuned Costa Head model.\n\n"
-        "The 3,722 images without AnyLabeling JSON are packaged with empty YOLO files according to the user's confirmed-negative summary. The manifest records that this negative status is not represented by a per-image source sidecar.\n",
+        "The local data bundle includes group_01..group_04 native 150x150 grayscale PNGs, converted one-class YOLO labels, the original AnyLabeling JSON where present, a Colab L4 notebook, and the ONNX inference/evaluation helper.\n\n"
+        "The notebook defaults to group_02 and group_03, which contain the most contact boxes.\n\n"
+        "The zero-shot comparison uses the SonarVision YOLOv8-ESI v6 checkpoint and maps its `unknown_debris` class to `contact`.\n\n"
+        "The bundle uses empty YOLO files for 3,722 negative images. Their negative status comes from a batch-level human review summary, recorded in the manifest.\n",
         encoding="utf-8",
     )
 

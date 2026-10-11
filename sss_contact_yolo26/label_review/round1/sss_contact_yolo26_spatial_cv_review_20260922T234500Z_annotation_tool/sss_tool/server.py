@@ -28,8 +28,8 @@ STATIC_FILES = {
 VIEWS = ("all", "fp", "fn", "tp", "tn", "unscored")
 PID_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
 
-FP_NOTE_EN = ("FP = false positive relative to the current annotation set: an OOF prediction that is not "
-              "matched to any current A label. It is a review candidate, not a confirmed physical false positive.")
+FP_NOTE_EN = ("FP candidate: an out-of-fold prediction unmatched to the current A annotations. "
+              "Review candidates for missing annotations or model errors.")
 
 
 class App:

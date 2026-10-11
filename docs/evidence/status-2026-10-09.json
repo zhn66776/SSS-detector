@@ -1,6 +1,6 @@
 {
   "inspection_date": "2026-10-09",
-  "scope": "Existing local evidence; no new training or evaluation run",
+  "scope": "Recorded dataset, annotation, checkpoint, inference and test results",
   "dataset": {
     "source": "Costa Head CES-86",
     "patch_count": 10756,
