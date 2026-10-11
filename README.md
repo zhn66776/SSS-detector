@@ -21,16 +21,28 @@ flowchart LR
     A[SSS mosaics and survey records] --> B[Native-resolution inspection]
     B --> C[150 x 150 grayscale patches]
     C --> D[Spatial train / validation / test split]
-    D --> E[Spatial cross-validation predictions]
-    E --> F[Human label review]
-    F --> G[Versioned label export]
-    G --> H[YOLO26n training]
+    D --> E[Spatial CV training and prediction]
+    E --> F[Manual review and label correction]
+    F --> G[Reviewed label export]
+    G -.->|Next review round| E
+    G --> H[YOLO26n retraining]
     H --> I[Local map inference]
     I --> J[Merged contacts and coordinate CSV]
     K[MBES and sediment polygons] --> B
 ```
 
 The detector uses one class, `contact`, for visible sonar targets such as boulders and debris.
+
+## Model-assisted annotation and retraining
+
+I used **model-assisted labeling with manual review** to recover contacts missing from the original annotations and improve the labels used for training.
+
+1. **Train with the initial labels.** Single-channel YOLO26n models were trained on the existing contact annotations using spatial cross-validation.
+2. **Predict held-out regions.** Each fold generated out-of-fold (OOF) detections for spatial blocks excluded from that fold's training set. Predictions unmatched to existing labels became candidates for manual review.
+3. **Manually verify and supplement the labels.** I inspected the candidate contacts against the sonar imagery, confirmed real targets, corrected bounding boxes where needed, and rejected false detections. Confirmed missing contacts were added to the YOLO annotations alongside the existing labels.
+4. **Export, retrain and repeat.** The reviewed labels were exported as a new annotation version. First-round labels were used to train models for a second prediction and review round. Second-round labels were then used to retrain the final YOLO26n detector with the spatial train/validation split preserved.
+
+I completed two manual review rounds covering **9,000 patches** in spatial chunks 1–9. The annotation set grew from **907 → 2,004 → 2,992 bounding boxes**. The added labels were manually reviewed and confirmed before retraining. See [annotation versions](docs/RESULTS.md#annotation-versions) for the label exports and counts.
 
 ## Components
 
@@ -52,7 +64,6 @@ The YOLO26 detector was trained on **Costa Head CES-86** imagery:
 - **10,756 grayscale patches**, each 150 × 150 pixels at 0.1 m/pixel.
 - **100-pixel stride**, with 50-pixel overlap between adjacent patches.
 - **6,847 training / 1,696 validation / 1,605 test / 608 buffer** patches, split geographically with a 15 m cross-split buffer.
-- Two review rounds covered **9,000 patches** in spatial chunks 1–9 and expanded the annotations from **907 → 2,004 → 2,992 boxes**.
 
 YOLO26n validation on spatial chunks 8–9, using the round-2 annotations:
 
