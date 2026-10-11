@@ -10,7 +10,7 @@ A research toolkit for detecting and reviewing seabed contacts in side-scan sona
 
 Run inference, explore detections on the map, and inspect individual sonar patches.
 
-https://github.com/user-attachments/assets/e3233363-5b5a-4848-bbe9-cdc26df002e5
+https://github.com/user-attachments/assets/6824c7f0-c12c-43b4-ad67-045ce871e99a
 
 *Imagery: [Costa Head CES-86 (2012–2013)](https://www.marinedataexchange.co.uk/details/CES-86/2012-2013-osiris-projects-costa-head-osiris-geophysical-survey), Marine Data Exchange, hosted by Crown Estate Scotland. Survey by Osiris Projects for SSE Renewables / Costa Head Wave Farm Ltd. © Crown Copyright (2013).*
 
