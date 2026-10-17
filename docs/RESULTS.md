@@ -1,6 +1,6 @@
 # Experiments and results
 
-Training and inference runs from 23 September 2026, with saved records checked on 9 October 2026.
+YOLO training and inference runs from 23 September 2026, with saved records checked on 9 October 2026. A separate [Qwen3-VL QLoRA experiment from 16 October 2026](QWEN3VL_QLORA.md) includes a completed training notebook and validation results; those results use a different evaluation protocol and are not a direct YOLO benchmark.
 
 ## Data sources
 

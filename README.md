@@ -44,6 +44,17 @@ I used **model-assisted labeling with manual review** to recover contacts missin
 
 I completed two manual review rounds covering **9,000 patches** in spatial chunks 1–9. The annotation set grew from **907 → 2,004 → 2,992 bounding boxes**. The added labels were manually reviewed and confirmed before retraining. See [annotation versions](docs/RESULTS.md#annotation-versions) for the label exports and counts.
 
+## Qwen3-VL QLoRA experiment
+
+I also fine-tuned **Qwen3-VL-4B-Instruct** to generate contact bounding boxes as JSON, using 4-bit QLoRA on language-model attention layers with the vision encoder frozen.
+
+- [Completed training notebook](notebooks/qwen3vl_sss_qlora_training_batch_done.ipynb), including saved logs, loss curves and detection examples.
+- [Setup, configuration and validation results](docs/QWEN3VL_QLORA.md).
+- Five epochs on an NVIDIA L4; 1,732 positive training patches and 276 positive validation patches. Epoch 3 was selected by validation loss.
+- On those 276 validation patches at IoU ≥ 0.5, precision / recall / F1 changed from **8.3% / 0.3% / 0.5%** for the quantized base model to **58.4% / 55.1% / 56.7%** for the selected adapter.
+
+These are patch-level **validation** results against existing annotations, with unreviewed empty-label patches excluded. This notebook ran with `RUN_FINAL_TEST=False`; it does not establish test-set performance or background false-positive rates. It is a research experiment, separate from the YOLO map-inference application.
+
 ## Components
 
 | Directory | Role |
@@ -51,7 +62,7 @@ I completed two manual review rounds covering **9,000 patches** in spatial chunk
 | [`sss_contact_inspector/`](sss_contact_inspector/README.md) | Contact maps, native image crops, dataset export and data-quality inspection. |
 | [`sss_mbes_sediment_viewer/`](sss_mbes_sediment_viewer/README.md) | Co-registered SSS, MBES elevation, geometric roughness and sediment polygons. |
 | [`sss_contact_yolo26/`](sss_contact_yolo26/README.md) | Two review rounds, retraining scripts, regional experiments and the inference application. |
-| [`notebooks/`](notebooks/README.md) | Colab training and spatial-CV templates. |
+| [`notebooks/`](notebooks/README.md) | Colab YOLO training/spatial-CV templates and a completed Qwen3-VL QLoRA experiment. |
 | `sss_contact_yolov8_spatial_split_bundle/` | Spatial-split configuration and dataset helpers. |
 | `sss_contact_yolov8_colab_bundle/`, `sss_contact_l4_colab_bundle/` | Earlier YOLOv8 training and zero-shot comparison workflows. |
 | `sas_native_viewer/` | Native-pixel viewer for a 3 cm Galapagos SAS raster. |

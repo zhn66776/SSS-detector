@@ -1,0 +1,96 @@
+{
+  "source_notebook": "notebooks/qwen3vl_sss_qlora_training_batch_done.ipynb",
+  "source_sha256": "549640c1220e56bbf86e763f27b9814cbb3ec9a74118f2d0aed690dbe284b851",
+  "run_id": "epochs_v3_20261016T100839_368773Z",
+  "run_date": "2026-10-16",
+  "source_type": "Extracted from saved notebook outputs; training was not rerun for publication.",
+  "dataset": {
+    "train_images": 1732,
+    "train_boxes": 2528,
+    "validation_images": 276,
+    "validation_boxes": 372,
+    "reviewed_negatives": 0,
+    "available_positive_test_images": 125,
+    "available_test_boxes": 167,
+    "test_evaluated": false,
+    "observed_min_train_validation_gap_m": 35
+  },
+  "best_epoch": 3,
+  "loss_history": [
+    {
+      "epoch": 0,
+      "train_loss": 1.8477087350141617,
+      "val_loss": 1.9075787551179102
+    },
+    {
+      "epoch": 1,
+      "train_loss": 0.9674757350516575,
+      "val_loss": 0.9108584564958264,
+      "online_train_loss": 0.9838527294592915,
+      "optimizer_steps": 433,
+      "elapsed_seconds": 820.4523869290001
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.9217243537066444,
+      "val_loss": 0.8774155106532741,
+      "online_train_loss": 0.9130219203641475,
+      "optimizer_steps": 866,
+      "elapsed_seconds": 1639.849230587
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.8862073544719954,
+      "val_loss": 0.8737240222896018,
+      "online_train_loss": 0.8777338556106979,
+      "optimizer_steps": 1299,
+      "elapsed_seconds": 2463.7604534340003
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.8570004309591,
+      "val_loss": 0.8812010931764542,
+      "online_train_loss": 0.8471823826945559,
+      "optimizer_steps": 1732,
+      "elapsed_seconds": 3283.4719589660003
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.8128478028794824,
+      "val_loss": 0.8877312175013207,
+      "online_train_loss": 0.8157258083241689,
+      "optimizer_steps": 2165,
+      "elapsed_seconds": 4101.4839706170005
+    }
+  ],
+  "validation_iou_0_5": {
+    "base": {
+      "iou": 0.5,
+      "tp_boxes": 1,
+      "fp_boxes": 11,
+      "fn_boxes": 371,
+      "precision": 0.08333333333333333,
+      "recall": 0.002688172043010753,
+      "f1": 0.005208333333333334,
+      "tn_images": null,
+      "reviewed_negative_images": 0,
+      "invalid_json_images": 0,
+      "images": 276,
+      "note": "TP/FP/FN are box counts; TN is an image count, not a detection-box TN. Invalid output is never TN."
+    },
+    "finetuned_best": {
+      "iou": 0.5,
+      "tp_boxes": 205,
+      "fp_boxes": 146,
+      "fn_boxes": 167,
+      "precision": 0.584045584045584,
+      "recall": 0.5510752688172043,
+      "f1": 0.5670816044260027,
+      "tn_images": null,
+      "reviewed_negative_images": 0,
+      "invalid_json_images": 0,
+      "images": 276,
+      "note": "TP/FP/FN are box counts; TN is an image count, not a detection-box TN. Invalid output is never TN."
+    }
+  }
+}
